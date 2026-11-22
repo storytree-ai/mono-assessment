@@ -2,6 +2,7 @@ import json
 from datetime import date
 from pathlib import Path
 
+from checklist.__main__ import find, pending
 from checklist.criteria import EXCEPTION, SATISFIED, UNABLE
 from checklist.engine import run
 from checklist.model import NoModel, ReplayModel
@@ -105,3 +106,9 @@ def test_with_the_model_off_structured_items_are_decided_and_the_rest_linked_for
             assert (items[key]["state"], items[key]["reason"]) == (UNABLE, "model unavailable")
             assert items[key]["documents"]
         assert len(report["documents"]) == 6
+
+
+def test_the_pending_list_holds_every_application_and_each_opens_by_its_id():
+    assert [r["application_id"] for r in pending(APPS)] == ["APP-1001", "APP-1002"]
+    assert find("app-1001", APPS) == APP_1 and find("APP-1002", APPS) == APP_2
+    assert find("app-9", APPS) is None

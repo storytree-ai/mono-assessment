@@ -10,5 +10,5 @@ What it plants: an expired driver's licence, a dealer invoice ($180,000) that di
 - `sharepoint/`: mocked SharePoint documents, as plain-text extracts.
 - `email/`: mocked broker email extracts.
 - `model-responses/`: hand-written model responses in the shape the model returns, replayed by the tests. They are
-  not recordings of a real model call; `python -m checklist <folder> --record` replaces them with real ones.
+  not recordings of a real model call; `checklist app-1001 --model anthropic --save-responses` replaces them with real ones.
 - `expected-report.json`: what the checklist must show for this application (test 1).
