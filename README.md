@@ -51,16 +51,18 @@ The pilot is working when, for the pilot analyst group:
 - mandatory evidence is extracted with at least 95% accuracy on an agreed test set;
 - nothing is written to a system of record without approval;
 - every statement in a brief traces to its source, or is marked unable to verify;
-- at least 70% of the pilot analysts use it each week (38% use today's tool).
+- at least 70% of the pilot analysts use it each week (38% use today's tool);
+- the time saved supports a defensible annual value: at 240 applications a day, each minute saved is 4 analyst hours
+  a day.
 
 ## How it works
 
 Every checklist item is keyed to a versioned lending criterion, and a fixed function decides it: satisfied, exception
 (missing, expired or inconsistent) or unable to verify (for example, a source down or a document unreadable). The
 model only pulls values out of documents, each with a quote and a pointer to where it found it, and adds a finding and
-a recommended action to items that failed or could not be checked. It can raise a concern that turns a satisfied item into an exception, but it can never
-clear one; both its call and the function's are kept in the audit record. Each run reads only the documents it
-fetched, so the checklist always reflects the current sources.
+a recommended action to items that failed or could not be checked. It can raise a concern that turns a satisfied item
+into an exception, but it can never clear one; both its call and the function's are kept in the audit record. Each run
+reads only the documents it fetched, so the checklist always reflects the current sources.
 
 ## What the prototype shows
 
@@ -69,7 +71,8 @@ On the two synthetic applications (17 tests, `pytest`):
 - APP-1001: the expired driver's licence, the dealer invoice that is $15,000 below the CRM loan amount, and the missing
   second year of financials are each an exception, each with a quote from and a link to its source.
 - APP-1002: the corrupted bank statement reads unable to verify, for the analyst to check by hand, not missing.
-- Each application's checklist matches its saved expected report, run after run.
+- Each application's checklist matches its saved expected report; with the model's responses replayed, every run
+  gives the same checklist.
 - A model concern raises a satisfied item to an exception and never clears one.
 - With the model off, the CRM checks are still decided and the document items are listed with links; with SharePoint
   down, its items read unable to verify, never missing, and a document uploaded in the run is still read.
@@ -103,9 +106,9 @@ checklist                                                     # the pending appl
 checklist app-1001 --as-of 2026-11-22                         # open one: a run; replays the saved model responses
 checklist app-1001 --as-of 2026-11-22 --details               # adds the run id, model, criterion versions and documents
 checklist app-1002 --as-of 2026-11-22
-checklist app-1001 --model none                               # the no-model mode
-checklist app-1001 --simulate-outage sharepoint               # a source down: upload a document at the prompt
-checklist app-1001 --model anthropic                          # a real call (ANTHROPIC_API_KEY)
+checklist app-1001 --as-of 2026-11-22 --model none            # the no-model mode
+checklist app-1001 --as-of 2026-11-22 --simulate-outage sharepoint   # a source down: upload a document at the prompt
+checklist app-1001 --as-of 2026-11-22 --model anthropic       # a real call (ANTHROPIC_API_KEY)
 
 checklist documents app-1001                                  # what the cache holds for an application, by run
 ```
@@ -151,13 +154,14 @@ evidence for the analyst and credit officer; it never approves or declines credi
 - **Tools and models.** Claude, by voice, as a thinking partner: reading the brief, the discovery questions,
   rehearsing the changed-facts scenarios and reviewing these documents. Voice was used heavily throughout. Storytree's
   session manager and coding agents (Claude Opus 5.5) for the repository, the planning, the build and these documents.
-  In the prototype, Claude through the Anthropic SDK, for extraction and annotation only.
+  In the prototype, Claude Opus 5.5 (set in `config.toml`) through the Anthropic SDK, for extraction and annotation
+  only.
 - **Delegated.** The code, tests, synthetic data and first drafts of the documents. Mick made the design calls and
   reviewed the code and the documents.
 - **Rejected or corrected.** The AI proposed a model-assisted check for fuzzy contradictions. Mick re-steered it:
   fixed functions make every call, and the model only annotates an item that has already failed, with a finding, a
-  recommended action and its sources. He also replaced the AI's state names (clear / needs attention / couldn't
-  check) with lending terms: satisfied / exception / unable to verify.
+  recommended action and its sources (it can raise a concern, never clear one). He also replaced the AI's state names
+  (clear / needs attention / couldn't check) with lending terms: satisfied / exception / unable to verify.
 - **Verified.** Mick ran the commands himself, read the output on the synthetic applications and gave feedback by
   voice; the agents reworked the build from it. The executable tests (`pytest`) check each planted issue and failure
   case.

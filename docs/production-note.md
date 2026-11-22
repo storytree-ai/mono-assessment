@@ -12,9 +12,9 @@ flowchart LR
     model --> checks["Fixed criteria checks<br/>(versioned)"]
     cache --> checks
     checks --> brief["Exception brief<br/>for the analyst"]
-    checks --> audit["Audit record<br/>(a line per run)"]
+    checks --> audit["Append-only audit record<br/>(a line per run)"]
+    brief --> people["Analyst and credit officer<br/>make every decision"]
   end
-  brief --> people["Analyst and credit officer<br/>make every decision"]
 ```
 
 | Part | In the prototype | In production |
@@ -22,7 +22,7 @@ flowchart LR
 | CRM, SharePoint, broker email | Mocked: folders of generated files (`sharepoint/`, `applications/`), pulled into `cache/` | Read-only connectors into HarbourLine's systems |
 | Reading documents | Mocked: ready-made extraction records beside each PDF | A document reading service, for example Amazon Textract |
 | Lending criteria | Built: `checklist/criteria.py`, invented rules, versioned | HarbourLine's rules, owned by credit policy |
-| Model | Built: Claude through the Anthropic API, behind `checklist/model.py`; by default, saved responses replayed | Claude on Amazon Bedrock in Sydney, a config change |
+| Model | Built: Claude through the Anthropic API, behind `checklist/model.py`; by default, saved responses replayed | Claude on Amazon Bedrock in Sydney: a small provider added to the wrapper, then set in config |
 | Audit record | Built: a line per run in `audit/` | An append-only store in the tenant |
 
 ## Identity, access, privacy and audit controls
@@ -46,14 +46,15 @@ satisfied. Rerun before any model or rule change; add every error found in use.
 
 ## Pilot, human review and rollout sequence
 
-A small group of pilot analysts first runs the tool beside their usual process, then prepares briefs from it, then
-the group widens. The analyst reviews every item and the credit officer makes every decision.
+Pilot analysts first run the tool beside their usual process, then prepare briefs from it, then the group widens.
+The analyst reviews every item; the credit officer makes every decision. HarbourLine's engineer (about four hours a
+week) grants the connectors' access; the pod builds the rest.
 
 ## Monitoring, incident response and rollback
 
-Watch preparation time, weekly use and "unable to verify" rates. An error found after use is handled like a recall:
-HarbourLine's process for analyst mistakes applies to every application it touched; fix it and add the case to the
-evaluation set. Rollback: switch the model off or change it in config.
+Watch preparation time, weekly use and "unable to verify" rates. An error found after use is a recall: HarbourLine's
+process for analyst mistakes covers every application it touched; fix it and add the case to the evaluation set.
+Rollback: switch the model off or change it in config.
 
 ## Analyst adoption and feedback loop
 
@@ -62,11 +63,9 @@ evaluation set. Target: 70% weekly use. Tell analysts plainly when something is 
 
 ## Build, buy or reuse
 
-Buy or reuse: the model (Claude on Bedrock), a document reading service, HarbourLine's identity provider, CRM and
-SharePoint. Build: the lending criteria checks and the brief.
+Buy or reuse the model, document reading, identity, CRM and SharePoint; build only the criteria checks and brief.
 
 ## Next steps, not built here
 
-An evaluation rerun command for any model; uploads read by the reading service and kept between runs; CRM updates
-drafted for the analyst to accept, never written automatically; key fields arriving structured, so more items are
-checked with the model off.
+An evaluation rerun command; CRM updates drafted for the analyst to accept; more fields arriving structured, so more
+items are checked with the model off.
