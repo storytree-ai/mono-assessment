@@ -1,0 +1,7 @@
+[model]
+# anthropic (a real call, needs ANTHROPIC_API_KEY) or replay (the saved responses beside each application)
+provider = "replay"
+name = "claude-opus-5-5"
+
+[audit]
+path = "audit/audit.jsonl"
