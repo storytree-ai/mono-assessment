@@ -5,36 +5,41 @@
     "annotations": [
       {
         "criterion": "crm_record@1",
-        "what_happened": "",
-        "call_to_action": "",
+        "finding": "",
+        "recommended_action": "",
+        "chase_by": "",
         "concern": "",
         "concern_sources": []
       },
       {
         "criterion": "credit_report@1",
-        "what_happened": "",
-        "call_to_action": "",
+        "finding": "",
+        "recommended_action": "",
+        "chase_by": "",
         "concern": "",
         "concern_sources": []
       },
       {
         "criterion": "drivers_licence@1",
-        "what_happened": "",
-        "call_to_action": "",
+        "finding": "",
+        "recommended_action": "",
+        "chase_by": "",
         "concern": "",
         "concern_sources": []
       },
       {
         "criterion": "dealer_invoice@1",
-        "what_happened": "",
-        "call_to_action": "",
+        "finding": "",
+        "recommended_action": "",
+        "chase_by": "",
         "concern": "",
         "concern_sources": []
       },
       {
         "criterion": "bank_statements@1",
-        "what_happened": "The bank statement file could not be read, so the months it covers are unknown.",
-        "call_to_action": "Open the bank statement by hand, or ask the applicant for a fresh copy, and check it covers three months.",
+        "finding": "The bank statement file can't be read, so the months it covers are unknown.",
+        "recommended_action": "Open it by hand, or ask the applicant for a fresh copy.",
+        "chase_by": "",
         "concern": "",
         "concern_sources": []
       }

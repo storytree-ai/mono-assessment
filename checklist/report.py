@@ -1,48 +1,104 @@
-"""The analyst-facing exception brief, as plain text."""
+"""The analyst-facing exception brief, for the terminal."""
+from datetime import date
 from pathlib import Path
 
+from .criteria import EXCEPTION, SATISFIED, UNABLE, day
 
-def link(report: dict, path: str) -> str:
-    return str(Path(report["folder"]) / path.split("#")[0]) + ("#" + path.split("#")[1] if "#" in path else "")
-
-
-def source_line(report: dict, source: dict) -> str:
-    said = f'"{source["quote"]}"' if "quote" in source else f"= {source['value']}"
-    return f"    - {link(report, source['ref'])}  {said}"
+STYLE = {"bold": "1", "dim": "2", SATISFIED: "32", EXCEPTION: "31", UNABLE: "33"}
+LABELS = {"abn": "ABN", "loan_amount": "Loan amount", "report_date": "Report date"}
+NAMES = {"crm/record.json": "CRM record", "crm/credit-report.json": "credit report"}
+WIDTH = 20
 
 
-def render(report: dict) -> str:
+class Brief:
+    def __init__(self, colour: bool):
+        self.colour, self.lines = colour, []
+
+    def style(self, text: str, key: str) -> str:
+        return f"\033[{STYLE[key]}m{text}\033[0m" if self.colour else text
+
+    def field(self, label: str, value: str, indent: str = "  "):
+        self.lines.append(f"{indent}{label:<{WIDTH}}{value}")
+
+
+def money(value) -> str:
+    return f"${float(value):,.0f}"
+
+
+def name(path: str) -> str:
+    return NAMES.get(path, Path(path).name)
+
+
+def source_text(source: dict) -> str:
+    if "quote" in source:
+        return f'"{source["quote"]}" · {name(source["ref"])}'
+    value = money(source["value"]) if source["field"] == "loan_amount" else source["value"]
+    label = LABELS.get(source["field"], source["field"].replace("_", " ").capitalize())
+    return f"{label}: {value} · {name(source['ref'].split('#')[0])}"
+
+
+def notices(report: dict) -> list[str]:
+    said = []
+    for source, state in report["sources"].items():
+        if state == "unavailable":
+            said.append(f"{source} is unavailable: the items that need it can't progress until it is back.")
+    note = report["model"].get("note") or ""
+    if note.startswith("unavailable"):
+        said.append("The model is unavailable: the document items are left to you, with their documents linked.")
+    elif note:
+        said.append("The model's notes are unavailable: each item shows the rule's own finding.")
+    return said
+
+
+def item_lines(brief: Brief, item: dict, details: bool):
+    note = item["annotation"] or {}
+    brief.lines.append(brief.style(item["title"], "bold"))
+    brief.lines.append("  " + brief.style(item["state"].capitalize(), item["state"]))
+    if note.get("finding") or item["finding"]:
+        brief.field("Finding", note.get("finding") or item["finding"])
+    if item["concern"]:
+        brief.field("Concern", item["concern"]["text"] + " · " + ", ".join(map(name, item["concern"]["sources"])))
+    if note.get("recommended_action") or item["action"]:
+        brief.field("Recommended action", note.get("recommended_action") or item["action"])
+    if note.get("chase_by"):
+        brief.field("", f"Chase by {day(date.fromisoformat(note['chase_by']))}")
+    refs = [source_text(s) for s in item["sources"]]
+    refs += [name(d) for d in item["documents"] if all(s["ref"] != d for s in item["sources"])]
+    for n, ref in enumerate(refs or ["none found"]):
+        brief.field("Sources" if n == 0 else "", ref)
+    if details:
+        brief.field("Criterion", " · ".join(filter(None, (item["criterion"], item["reason"], f"applies to {item['applies_when']}"))))
+    brief.lines.append("")
+
+
+def render(report: dict, details: bool = False, colour: bool = False) -> str:
     app, s = report["application"], report["summary"]
-    lines = ["HarbourLine Finance: exception brief (prototype, GENERATED synthetic data)",
-             "For the analyst and credit officer. This tool does not approve or decline credit."]
+    brief = Brief(colour)
     if app:
-        lines.append(f"{app['application_id']}  {app['applicant']}  ${app['loan_amount']:,}  {app['asset']}")
+        brief.lines += [brief.style(f"{app['application_id']} · {app['applicant']}", "bold"),
+                        f"{app['product'].capitalize()}, flagged for review on {day(date.fromisoformat(app['flagged_for_review']))}.", ""]
+        brief.field("Loan", money(app["loan_amount"]))
+        for label in ("asset", "director", "broker"):
+            brief.field(label.capitalize(), app[label])
+        brief.lines.append("")
     else:
-        lines.append("The CRM record is unavailable, so no checklist can be built; the documents found are listed below.")
-    model = report["model"]
-    lines += [f"Run {report['run_id']} at {report['run_at']} (as of {report['as_of']}); "
-              f"model {model['name']} ({model['provider']})" + (f": {model['note']}" if model.get("note") else ""),
-              f"{s['satisfied']} satisfied, {s['exception']} exception, {s['unable to verify']} unable to verify", ""]
+        brief.lines += ["The CRM record is unavailable, so no checklist can be built.", ""]
+    brief.lines += notices(report) + ([""] if notices(report) else [])
+    if report["items"]:
+        counts = [brief.style(f"{s[state]} {label}", state) for state, label in
+                  ((EXCEPTION, "exception" if s[EXCEPTION] == 1 else "exceptions"), (UNABLE, "unable to verify"),
+                   (SATISFIED, "satisfied"))]
+        brief.lines += [" · ".join(counts), ""]
     for item in report["items"]:
-        head = item["state"].upper() + (f" ({item['reason']})" if item["reason"] else "")
-        lines.append(f"[{head}] {item['title']}  ({item['criterion']}, applies to {item['applies_when']})")
-        lines.append(f"  Rule: {item['detail']}")
-        if item["annotation"]:
-            lines.append(f"  What happened: {item['annotation']['what_happened']}")
-            lines.append(f"  Next step: {item['annotation']['call_to_action']}")
-        if item["concern"]:
-            lines.append(f"  Model concern: {item['concern']['text']} "
-                         f"(sources: {', '.join(item['concern']['sources'])})")
-        if item["promise"]:
-            p = item["promise"]
-            due = f", expected by {p['expected_by']}" if p["expected_by"] else ""
-            lines.append(f"  Promised: {p['text']}{due}  ({link(report, p['source'])}: \"{p['quote']}\")")
-        lines.append("  Sources:")
-        refs = [source_line(report, src) for src in item["sources"]]
-        refs += [f"    - {link(report, d)}" for d in item["documents"] if all(s["ref"] != d for s in item["sources"])]
-        lines += refs or ["    - none found"]
-        lines.append("")
-    lines.append("Sources: " + ", ".join(f"{name} {state}" for name, state in report["sources"].items()))
-    lines.append("Documents:")
-    lines += [f"  - {link(report, d['path'])}  ({d['source']}, {d['status']})" for d in report["documents"]]
-    return "\n".join(lines)
+        item_lines(brief, item, details)
+    if details or not app:
+        model = report["model"]
+        brief.lines.append(brief.style("Details", "bold"))
+        brief.field("Run", f"{report['run_id']} at {report['run_at']}, as of {report['as_of']}")
+        brief.field("Model", f"{model['name']} ({model['provider']})" + (f": {model['note']}" if model.get("note") else ""))
+        brief.field("Sources", ", ".join(f"{n} {state}" for n, state in report["sources"].items()))
+        for n, d in enumerate(report["documents"]):
+            brief.field("Documents" if n == 0 else "", f"{d['path']} ({d['source']}, {d['status']})")
+        brief.lines.append("")
+    brief.lines.append(brief.style("Synthetic data: HarbourLine Finance and its applicants are fictional.", "dim"))
+    return "\n".join(brief.lines)

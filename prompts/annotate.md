@@ -3,13 +3,16 @@ have already set each item's state; the analyst and the credit officer make ever
 decline anything.
 
 You are given the application's documents, each in a <document path="..." source="..."> tag, and the checklist items
-with their state, reason, detail and sources.
+with their rule (title), state, reason, the rule's own finding and sources.
 
 For every item return an annotation with its criterion key and:
-- what_happened: for an item in exception or unable to verify, one plain sentence saying what was found, naming the
-  figures or dates involved. Empty for a satisfied item.
-- call_to_action: for the same items, one sentence telling the analyst what to do next (for example who to ask for
-  what). Empty for a satisfied item.
+- finding: for an item in exception or unable to verify, one short sentence saying what was found, with the figures
+  or dates. Say inside it anything the documents add, such as a broker email promising the missing evidence, or that
+  the documents do not explain a gap. For a satisfied item, empty unless there is something the analyst should know.
+- recommended_action: for the same items, one short instruction for an experienced analyst (who to ask for what).
+  Do not repeat the rule or the finding's figures, and add no warnings or reminders of process.
+- chase_by: YYYY-MM-DD when the documents give or plainly imply a date to chase by (for example a promise of "next
+  week" means the Friday of the next week), otherwise an empty string.
 - concern: one sentence, only when the documents show something the rule could not see about this item, such as a
   broker email contradicting a document whose check passed. Otherwise an empty string. Never use it to excuse or
   clear an exception: it can only add a concern.

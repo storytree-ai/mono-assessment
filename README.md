@@ -28,12 +28,15 @@ source .venv/bin/activate        # then checklist is one word
 
 checklist                                                     # the pending applications
 checklist app-1001 --as-of 2026-11-22                         # one application; replays the saved model responses
+checklist app-1001 --as-of 2026-11-22 --details               # adds the run id, model, criterion versions and documents
 checklist app-1002 --as-of 2026-11-22
 checklist app-1001 --model none                               # the no-model mode
 checklist app-1001 --simulate-outage sharepoint               # a source system down
 checklist app-1001 --model anthropic                          # a real call (ANTHROPIC_API_KEY)
 ```
 
+Each item reads as its rule, its state, the finding, the recommended action and the sources. The checklist prepares
+evidence for the analyst and credit officer; it never approves or declines credit (`checklist --help` says so too).
 `--save-responses` with `--model anthropic` saves the real responses over the hand-written ones. Every run appends a line to
 `audit/audit.jsonl`. The provider and model are set in `config.toml`. Next steps are in
 [`docs/production-note.md`](docs/production-note.md).

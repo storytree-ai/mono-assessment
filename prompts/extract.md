@@ -11,8 +11,4 @@ For each input, return one entry per value you find, with:
 - quote: the exact text in that document the value rests on, copied word for word.
 Return no entry for an input whose document is not among those given.
 
-Also read the broker emails for promises to supply evidence later. For each, return the criterion it concerns, the
-promise in one sentence, expected_by as YYYY-MM-DD only when the email gives or plainly implies a date (otherwise an
-empty string), its source path and the exact quote.
-
 Use only what the documents say. Do not judge the applicant.
