@@ -7,8 +7,8 @@ that in full is open on the plan (question_f2bf84606c30).
 
 | Part | Here | In production |
 |---|---|---|
-| CRM, broker email | Mocked: folders of generated synthetic files | Read-only connectors into HarbourLine's systems |
-| SharePoint documents | Generated PDFs in a local document store (`document-store/`), read through mocked extraction records | A cloud bucket in the Australian tenant, with an extraction service (for example Amazon Textract or Azure Document Intelligence) writing the records |
+| CRM, broker email | Mocked: folders of generated synthetic files, pulled by connectors into the local cache | Read-only connectors into HarbourLine's systems |
+| SharePoint documents | Generated PDFs in a mocked SharePoint (`sharepoint/`), pulled into a run-scoped local cache (`cache/`) and read through mocked extraction records | A cloud bucket in the Australian tenant as the cache, with an extraction service (for example Amazon Textract or Azure Document Intelligence) writing the records |
 | Lending criteria | `checklist/criteria.py`, synthetic policy, versioned keys | HarbourLine's own mandatory-evidence rules, owned by credit policy |
 | Model | Claude through the Anthropic API, behind `checklist/model.py`; tests and the default run replay saved responses | Claude on Amazon Bedrock in the Sydney region (below) |
 | Audit record | Append-only JSON lines in `audit/` | An append-only store inside the Australian tenant |
@@ -26,10 +26,10 @@ change plus a rerun of the evaluation set, with the no-model mode covering the g
 1. **Evaluation-set rerun command.** One command that reruns every saved case (starting with the two applications
    here) against any provider and model and reports extraction accuracy against the expected reports, so a new
    model is judged in minutes; every failing case found in use is added to the set (ADR-0001, twists 1, 2 and 5).
-2. **Manual upload path: now built** (ADR-0004). `checklist upload` puts a document into the store and records
-   where it came from (by whom, when, from where); it reads "awaiting extraction" until its extraction record
-   arrives. Next: an extraction service writing those records, and uploads counting while SharePoint is down
-   (twist 4; open on the plan).
+2. **Manual upload path: now built** (ADR-0004, ADR-0005). Opening an application starts a run that offers an
+   upload after its pull; the upload goes into the run's cache, records where it came from (by whom, when, from
+   where) and is read while SharePoint is down (twist 4); it reads "awaiting extraction". Next: an extraction
+   service writing those records, and carrying uploads forward between runs (today they are re-uploaded each run).
 3. **CRM-update draft with approval.** The tool drafts the CRM update (for example the exception summary) for the
    analyst to accept after review; nothing is written automatically, keeping the release read-only and every write
    human-approved (twist 3).

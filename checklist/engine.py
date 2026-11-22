@@ -1,41 +1,22 @@
-"""Runs one application through the checklist: load, extract, decide, annotate, report, audit."""
+"""Runs one application through the checklist: start a run, pull the sources into the cache, offer an upload, then
+extract, decide, annotate, report and audit from this run's cache alone."""
 import json
 import uuid
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from . import documents
+from . import cache, connectors
+from .cache import AWAITING, Document
+from .connectors import SOURCES
 from .criteria import EXCEPTION, EXTRACTED_INPUTS, SATISFIED, UNABLE, Criterion, applicable
-from .documents import AWAITING, Document
 
 PROMPTS = Path(__file__).resolve().parent.parent / "prompts"
-SOURCES = {"crm": "CRM", "sharepoint": "SharePoint", "email": "broker email"}
 DOCUMENT_SOURCE = "sharepoint"
 
 
-def store_folder(store: Path, folder: Path) -> Path:
-    """An application's place in the document store, by its id: app-1001-excavator keeps its documents in APP-1001."""
-    return store / "-".join(folder.name.split("-")[:2]).upper()
-
-
-def load_documents(folder: Path, down: set[str], store: Path) -> list[Document]:
-    docs = []
-    for top, source in SOURCES.items():
-        if top in down:
-            continue
-        if top == DOCUMENT_SOURCE:
-            docs += documents.read(store_folder(store, folder), source)
-            continue
-        for file in sorted((folder / top).glob("*")):
-            path = f"{top}/{file.name}"
-            try:
-                text = file.read_text(encoding="utf-8")
-                if file.suffix == ".json":
-                    json.loads(text)
-                docs.append(Document(path, source, "read", text, str(file)))
-            except ValueError:
-                docs.append(Document(path, source, "unreadable", file=str(file)))
-    return docs
+def cache_folder(cache_root: Path, folder: Path) -> Path:
+    """An application's place in the cache, by its id: app-1001-excavator's is APP-1001."""
+    return cache_root / "-".join(folder.name.split("-")[:2]).upper()
 
 
 def structured(docs: list[Document], path: str) -> dict:
@@ -74,7 +55,7 @@ def extract(model, docs: list[Document], criteria: list[Criterion]) -> dict:
 
 
 HAND_CHECK = {
-    "source unavailable": "Check the documents in SharePoint by hand, or rerun once it is back.",
+    "source unavailable": "Fetch the document by hand and upload it in a new run, or rerun once SharePoint is back.",
     "unreadable": "Open the file and check it by hand, or ask for a fresh copy.",
     AWAITING: "Open the file and check it by hand, or rerun once it has been extracted.",
     "model unavailable": "Open the documents below and check them by hand.",
@@ -84,8 +65,8 @@ HAND_CHECK = {
 
 def gate(c: Criterion, found: list[Document], down: set[str]):
     """The states an item takes before its check can run at all."""
-    if DOCUMENT_SOURCE in down:
-        return UNABLE, "source unavailable", "SharePoint is unavailable."
+    if not found and DOCUMENT_SOURCE in down:
+        return UNABLE, "source unavailable", "SharePoint is unavailable and nothing was uploaded for this in this run."
     if not found:
         return EXCEPTION, "missing", f"No {c.document.replace('-', ' ')} on file."
     unreadable = [Path(d.path).name for d in found if d.status == "unreadable"]
@@ -134,7 +115,7 @@ def annotate(model, docs: list[Document], items: list[dict]) -> None:
     by_key = {item["criterion"]: item for item in items}
     for note in answer["annotations"]:
         item = by_key.get(note["criterion"])
-        if item is None or item["reason"] == AWAITING:
+        if item is None or item["reason"] in (AWAITING, "source unavailable"):
             continue
         if note["finding"] or note["recommended_action"]:
             item["annotation"] = {k: note[k] for k in ("finding", "recommended_action", "chase_by")}
@@ -145,8 +126,16 @@ def annotate(model, docs: list[Document], items: list[dict]) -> None:
 
 
 def run(folder: Path, model, as_of: date, down: set[str] = frozenset(), audit: Path | None = None,
-        store: Path = documents.STORE) -> dict:
-    docs = load_documents(folder, down, store)
+        cache_root: Path | None = None, retention_days: int = 14, offer_upload=None) -> dict:
+    """Opening an application is a run. offer_upload, given this run's documents, returns (file, kind, note) uploads."""
+    run_id, run_at = uuid.uuid4().hex[:12], datetime.now(timezone.utc).isoformat(timespec="seconds")
+    cache_root = cache_root or cache.CACHE
+    cache.prune(cache_root, retention_days)
+    held = cache_folder(cache_root, folder)
+    connectors.pull(folder, held, run_id, down)
+    for file, kind, note in offer_upload(cache.read(held, run_id, SOURCES)) if offer_upload else ():
+        cache.upload(held, file, kind, note, run_id)
+    docs = cache.read(held, run_id, SOURCES)
     record = structured(docs, "crm/record.json")
     criteria = applicable(record) if record else []
     items, note = [], None
@@ -162,8 +151,8 @@ def run(folder: Path, model, as_of: date, down: set[str] = frozenset(), audit: P
             except Exception as failure:
                 note = f"annotations unavailable ({failure})"
     report = {
-        "run_id": uuid.uuid4().hex[:12],
-        "run_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "run_id": run_id,
+        "run_at": run_at,
         "as_of": as_of.isoformat(),
         "folder": str(folder),
         "application": record,
