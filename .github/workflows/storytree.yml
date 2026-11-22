@@ -1,0 +1,24 @@
+# storytree's pipeline (ADR-0911): the project's tests, and the checks storytree's parts contribute, on every pull request.
+# storytree provides this file through its agent's wire_pipeline: change the commands, never the checks.
+name: storytree
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24
+      - run: "python3 -m venv .venv && .venv/bin/python -m pip install pytest"
+      - run: ".venv/bin/python -m pytest -rA"
