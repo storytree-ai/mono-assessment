@@ -1,0 +1,6 @@
+{
+  "_generated": "GENERATED: mocked extraction record, standing in for an extraction service's output, build agent 2026-11-22",
+  "document": "drivers-licence.pdf",
+  "status": "done",
+  "text": "GENERATED synthetic document (mock SharePoint document), build agent 2026-11-22\n\nNEW SOUTH WALES DRIVER LICENCE (fictional specimen)\nName: JORDAN AVERY\nLicence No: 0000 1001\nClass: C, LR\nDate of birth: 14 MAR 1984\nExpiry: 30 SEP 2026\n"
+}

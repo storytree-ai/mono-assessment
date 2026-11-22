@@ -1,0 +1,6 @@
+{
+  "_generated": "GENERATED: mocked extraction record, standing in for an extraction service's output, build agent 2026-11-22",
+  "document": "dealer-invoice.pdf",
+  "status": "done",
+  "text": "GENERATED synthetic document (mock SharePoint document), build agent 2026-11-22\n\nTAX INVOICE  INV-55021\nNorthside Plant & Machinery (fictional dealer)\nBill to: Coastal Earthworks Pty Ltd\nDate: 12 November 2026\n\n1 x 2025 Kato HD513 13-tonne excavator, serial KHD513-00987\nSubtotal (ex GST): $163,636.36\nGST: $16,363.64\nTotal (inc GST): $180,000.00\n"
+}

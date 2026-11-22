@@ -24,7 +24,7 @@
       "reason": "inconsistent",
       "sources": [
         "crm/record.json#loan_amount",
-        "sharepoint/dealer-invoice.md"
+        "dealer-invoice.pdf"
       ]
     },
     "financials_two_years@1": {

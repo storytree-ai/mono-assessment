@@ -1,8 +1,10 @@
 import json
+import shutil
 from datetime import date
 from pathlib import Path
 
 from checklist.__main__ import find, pending
+from checklist import documents
 from checklist.criteria import EXCEPTION, SATISFIED, UNABLE
 from checklist.engine import run
 from checklist.model import NoModel, ReplayModel
@@ -51,7 +53,7 @@ def test_application_2_corrupted_document_is_unable_to_verify_not_missing():
     assert_matches_expected(report, APP_2)
     statement = next(i for i in report["items"] if i["criterion"] == "bank_statements@1")
     assert "can't be read" in statement["finding"] and statement["action"]
-    assert statement["documents"] == ["sharepoint/bank-statement.pdf"]
+    assert statement["documents"] == ["bank-statement.pdf"]
 
 
 def test_a_source_that_is_down_is_unavailable_never_missing():
@@ -85,11 +87,28 @@ def test_a_model_concern_raises_a_satisfied_item_and_never_clears_one():
     assert items["bank_statements@1"]["state"] == UNABLE
 
 
-def test_every_application_file_is_labelled_as_generated():
-    for file in APPS.rglob("*"):
+def test_every_application_file_and_stored_document_is_labelled_as_generated():
+    stored = [documents.STORE / folder / name for folder in ("APP-1001", "APP-1002")
+              for held in documents.stored(documents.STORE / folder) if held["origin"]["origin"] == "SharePoint (mocked)"
+              for name in (held["file"], held["file"].rsplit(".", 1)[0] + ".origin.json")]
+    for file in [*APPS.rglob("*"), *documents.STORE.glob("*/*.extraction.json"), *stored]:
         if file.is_file():
             head = file.read_bytes()[:200]
             assert b"GENERATED" in head or b"_generated" in head, file
+    assert len(stored) == 12
+
+
+def test_an_uploaded_document_with_no_extraction_record_reads_awaiting_extraction(tmp_path):
+    shutil.copytree(documents.STORE / "APP-1001", tmp_path / "APP-1001")
+    scan = tmp_path / "licence-scan.PDF"
+    scan.write_bytes(b"%PDF-1.4 a scan the analyst fetched by hand")
+    assert documents.upload(tmp_path / "APP-1001", scan, "drivers-licence", "emailed by the broker") == "drivers-licence-2.pdf"
+    held = {h["file"]: h for h in documents.stored(tmp_path / "APP-1001")}
+    assert held["drivers-licence-2.pdf"]["origin"]["uploaded_from"] == str(scan)
+    assert held["drivers-licence-2.pdf"]["extraction"]["status"] == documents.AWAITING
+    licence = next(i for i in checklist(APP_1, store=tmp_path)["items"] if i["criterion"] == "drivers_licence@1")
+    assert (licence["state"], licence["reason"], licence["annotation"]) == (UNABLE, documents.AWAITING, None)
+    assert "drivers-licence-2.pdf" in licence["finding"] and "drivers-licence-2.pdf" in render(checklist(APP_1, store=tmp_path))
 
 
 class BrokenModel(ReplayModel):

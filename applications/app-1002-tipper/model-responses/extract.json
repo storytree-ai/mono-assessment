@@ -7,14 +7,14 @@
         "criterion": "drivers_licence@1",
         "name": "expiry_date",
         "value": "2029-02-04",
-        "source": "sharepoint/drivers-licence.md",
+        "source": "drivers-licence.pdf",
         "quote": "Expiry: 04 FEB 2029"
       },
       {
         "criterion": "dealer_invoice@1",
         "name": "invoice_total",
         "value": "120000",
-        "source": "sharepoint/dealer-invoice.md",
+        "source": "dealer-invoice.pdf",
         "quote": "Total (inc GST): $120,000.00"
       }
     ]

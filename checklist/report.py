@@ -17,6 +17,10 @@ class Brief:
     def style(self, text: str, key: str) -> str:
         return f"\033[{STYLE[key]}m{text}\033[0m" if self.colour else text
 
+    def link(self, text: str, file: str) -> str:
+        """A clickable terminal hyperlink (OSC 8) to the stored file; terminals without them show the text."""
+        return f"\033]8;;{Path(file).as_uri()}\033\\{text}\033]8;;\033\\" if self.colour and file else text
+
     def field(self, label: str, value: str, indent: str = "  "):
         self.lines.append(f"{indent}{label:<{WIDTH}}{value}")
 
@@ -29,12 +33,18 @@ def name(path: str) -> str:
     return NAMES.get(path, Path(path).name)
 
 
-def source_text(source: dict) -> str:
+def linked(brief: Brief, report: dict, path: str) -> str:
+    file = next((d["file"] for d in report["documents"] if d["path"] == path), "")
+    return brief.link(name(path), file)
+
+
+def source_text(brief: Brief, report: dict, source: dict) -> str:
+    path = source["ref"].split("#")[0]
     if "quote" in source:
-        return f'"{source["quote"]}" · {name(source["ref"])}'
+        return f'"{source["quote"]}" · {linked(brief, report, path)}'
     value = money(source["value"]) if source["field"] == "loan_amount" else source["value"]
     label = LABELS.get(source["field"], source["field"].replace("_", " ").capitalize())
-    return f"{label}: {value} · {name(source['ref'].split('#')[0])}"
+    return f"{label}: {value} · {linked(brief, report, path)}"
 
 
 def notices(report: dict) -> list[str]:
@@ -50,20 +60,20 @@ def notices(report: dict) -> list[str]:
     return said
 
 
-def item_lines(brief: Brief, item: dict, details: bool):
+def item_lines(brief: Brief, report: dict, item: dict, details: bool):
     note = item["annotation"] or {}
     brief.lines.append(brief.style(item["title"], "bold"))
     brief.lines.append("  " + brief.style(item["state"].capitalize(), item["state"]))
     if note.get("finding") or item["finding"]:
         brief.field("Finding", note.get("finding") or item["finding"])
     if item["concern"]:
-        brief.field("Concern", item["concern"]["text"] + " · " + ", ".join(map(name, item["concern"]["sources"])))
+        brief.field("Concern", item["concern"]["text"] + " · " + ", ".join(linked(brief, report, p) for p in item["concern"]["sources"]))
     if note.get("recommended_action") or item["action"]:
         brief.field("Recommended action", note.get("recommended_action") or item["action"])
     if note.get("chase_by"):
         brief.field("", f"Chase by {day(date.fromisoformat(note['chase_by']))}")
-    refs = [source_text(s) for s in item["sources"]]
-    refs += [name(d) for d in item["documents"] if all(s["ref"] != d for s in item["sources"])]
+    refs = [source_text(brief, report, s) for s in item["sources"]]
+    refs += [linked(brief, report, d) for d in item["documents"] if all(s["ref"] != d for s in item["sources"])]
     for n, ref in enumerate(refs or ["none found"]):
         brief.field("Sources" if n == 0 else "", ref)
     if details:
@@ -90,7 +100,7 @@ def render(report: dict, details: bool = False, colour: bool = False) -> str:
                    (SATISFIED, "satisfied"))]
         brief.lines += [" · ".join(counts), ""]
     for item in report["items"]:
-        item_lines(brief, item, details)
+        item_lines(brief, report, item, details)
     if details or not app:
         model = report["model"]
         brief.lines.append(brief.style("Details", "bold"))
@@ -98,7 +108,7 @@ def render(report: dict, details: bool = False, colour: bool = False) -> str:
         brief.field("Model", f"{model['name']} ({model['provider']})" + (f": {model['note']}" if model.get("note") else ""))
         brief.field("Sources", ", ".join(f"{n} {state}" for n, state in report["sources"].items()))
         for n, d in enumerate(report["documents"]):
-            brief.field("Documents" if n == 0 else "", f"{d['path']} ({d['source']}, {d['status']})")
+            brief.field("Documents" if n == 0 else "", f"{d['file'] or d['path']} ({d['source']}, {d['status']})")
         brief.lines.append("")
     brief.lines.append(brief.style("Synthetic data: HarbourLine Finance and its applicants are fictional.", "dim"))
     return "\n".join(brief.lines)

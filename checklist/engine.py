@@ -1,29 +1,30 @@
 """Runs one application through the checklist: load, extract, decide, annotate, report, audit."""
 import json
 import uuid
-from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
 
+from . import documents
 from .criteria import EXCEPTION, EXTRACTED_INPUTS, SATISFIED, UNABLE, Criterion, applicable
+from .documents import AWAITING, Document
 
 PROMPTS = Path(__file__).resolve().parent.parent / "prompts"
 SOURCES = {"crm": "CRM", "sharepoint": "SharePoint", "email": "broker email"}
 DOCUMENT_SOURCE = "sharepoint"
 
 
-@dataclass
-class Document:
-    path: str
-    source: str
-    status: str
-    text: str = ""
+def store_folder(store: Path, folder: Path) -> Path:
+    """An application's place in the document store, by its id: app-1001-excavator keeps its documents in APP-1001."""
+    return store / "-".join(folder.name.split("-")[:2]).upper()
 
 
-def load_documents(folder: Path, down: set[str]) -> list[Document]:
+def load_documents(folder: Path, down: set[str], store: Path) -> list[Document]:
     docs = []
     for top, source in SOURCES.items():
         if top in down:
+            continue
+        if top == DOCUMENT_SOURCE:
+            docs += documents.read(store_folder(store, folder), source)
             continue
         for file in sorted((folder / top).glob("*")):
             path = f"{top}/{file.name}"
@@ -31,9 +32,9 @@ def load_documents(folder: Path, down: set[str]) -> list[Document]:
                 text = file.read_text(encoding="utf-8")
                 if file.suffix == ".json":
                     json.loads(text)
-                docs.append(Document(path, source, "read", text))
+                docs.append(Document(path, source, "read", text, str(file)))
             except ValueError:
-                docs.append(Document(path, source, "unreadable"))
+                docs.append(Document(path, source, "unreadable", file=str(file)))
     return docs
 
 
@@ -75,6 +76,7 @@ def extract(model, docs: list[Document], criteria: list[Criterion]) -> dict:
 HAND_CHECK = {
     "source unavailable": "Check the documents in SharePoint by hand, or rerun once it is back.",
     "unreadable": "Open the file and check it by hand, or ask for a fresh copy.",
+    AWAITING: "Open the file and check it by hand, or rerun once it has been extracted.",
     "model unavailable": "Open the documents below and check them by hand.",
     "please check": "Check the document by hand.",
 }
@@ -89,6 +91,9 @@ def gate(c: Criterion, found: list[Document], down: set[str]):
     unreadable = [Path(d.path).name for d in found if d.status == "unreadable"]
     if unreadable:
         return UNABLE, "unreadable", f"{', '.join(unreadable)} can't be read."
+    waiting = [d.path for d in found if d.status == AWAITING]
+    if waiting:
+        return UNABLE, AWAITING, f"{', '.join(waiting)}: awaiting extraction."
     return None
 
 
@@ -129,7 +134,7 @@ def annotate(model, docs: list[Document], items: list[dict]) -> None:
     by_key = {item["criterion"]: item for item in items}
     for note in answer["annotations"]:
         item = by_key.get(note["criterion"])
-        if item is None:
+        if item is None or item["reason"] == AWAITING:
             continue
         if note["finding"] or note["recommended_action"]:
             item["annotation"] = {k: note[k] for k in ("finding", "recommended_action", "chase_by")}
@@ -139,8 +144,9 @@ def annotate(model, docs: list[Document], items: list[dict]) -> None:
                 item["state"], item["reason"] = EXCEPTION, "model concern"
 
 
-def run(folder: Path, model, as_of: date, down: set[str] = frozenset(), audit: Path | None = None) -> dict:
-    docs = load_documents(folder, down)
+def run(folder: Path, model, as_of: date, down: set[str] = frozenset(), audit: Path | None = None,
+        store: Path = documents.STORE) -> dict:
+    docs = load_documents(folder, down, store)
     record = structured(docs, "crm/record.json")
     criteria = applicable(record) if record else []
     items, note = [], None
@@ -163,7 +169,7 @@ def run(folder: Path, model, as_of: date, down: set[str] = frozenset(), audit: P
         "application": record,
         "model": {"provider": model.provider, "name": model.name, "note": note},
         "sources": {name: "unavailable" if top in down else "up" for top, name in SOURCES.items()},
-        "documents": [{"path": d.path, "source": d.source, "status": d.status} for d in docs],
+        "documents": [{"path": d.path, "source": d.source, "status": d.status, "file": d.file} for d in docs],
         "criteria": [c.key for c in criteria],
         "items": items,
         "summary": {s: sum(i["state"] == s for i in items) for s in (SATISFIED, EXCEPTION, UNABLE)},
