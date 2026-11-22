@@ -93,7 +93,8 @@ Each item reads as its rule, its state, the finding, the recommended action and 
 evidence for the analyst and credit officer; it never approves or declines credit (`checklist --help` says so too).
 `--save-responses` with `--model anthropic` saves the real responses over the hand-written ones. Every run appends a line to
 `audit/audit.jsonl`. The provider and model are set in `config.toml`. Next steps are in
-[`docs/production-note.md`](docs/production-note.md).
+[`docs/production-note.md`](docs/production-note.md); the COO update and harvest bullets are in
+[`docs/client-update.md`](docs/client-update.md).
 
 | Folder | What it is |
 |---|---|
