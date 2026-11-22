@@ -1,27 +1,25 @@
-# Client update and harvest (first draft)
-
-Status: a minimal first draft of Deliverable 4, for Mick to add to.
+# Client update and harvest
 
 ## Update for HarbourLine's COO
 
-What we built: a first working version, on made-up data, that reads a flagged loan application and lists what is
-missing, out of date or does not match, showing where each finding came from. It never approves or declines a loan.
-It is not yet connected to your systems.
+The first working version of the evidence checklist is ready to show your analysts. On two made-up test applications,
+it caught every missing, expired and contradictory item we planted, and pointed to the document behind each one.
+When a document could not be read, it said so and left it to the analyst rather than guessing. It never approves or declines a loan, and it changes nothing in your systems.
 
-What it means for the backlog: analysts start from a short list of problems instead of every document, which should
-cut preparation time. The pilot will measure by how much.
+It is not yet connected to your systems or measured on real cases, and its security has not been reviewed, so it is
+not ready for live use.
 
-The one risk worth knowing: To confirm with Mick (the brief points to analysts' trust after two earlier pilots made
-extra work, and privacy approval for the model).
+The main risk is trust: after two earlier pilots made extra work, analysts will only adopt a tool that clearly saves
+them time.
 
-What we need from you next: a privacy or compliance contact to agree how customer data may be used, and time with a
-few pilot analysts.
+The decision we need from you: who in privacy will agree how past cases can be used to measure it, and which
+analysts join the pilot.
 
 ## What to harvest into a reusable monō pattern
 
-- **The model reads, the rules decide.** The model pulls each value out of a document with a pointer to where it
-  found it; fixed code applies the lending rules.
-- **Versioned rules and a run record.** Each checklist item names the exact version of the rule it was checked
-  against, and every run adds a record that is never edited.
-- **A no-model mode.** If the model is down or not allowed, the fixed checks still run and the documents are listed
-  with links, so work carries on.
+- **A versioned library of fixed checks.** Each evidence rule is a small named, versioned check saying when it
+  applies and what it reads; the engine runs any list of them, so the next lender writes rules, not a tool.
+- **The model can raise a flag, never clear one.** A model concern turns a passed item into an exception but cannot
+  pass a failed one, and the rule's own result is kept beside it.
+- **"Can't check" is never "missing".** When the model, a source or a file is unavailable, the item reads "unable to
+  verify" with its documents and a by-hand step, so an outage never triggers a needless chase.
