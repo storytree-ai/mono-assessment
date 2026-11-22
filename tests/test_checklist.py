@@ -4,7 +4,7 @@ from pathlib import Path
 
 from checklist.criteria import EXCEPTION, SATISFIED, UNABLE
 from checklist.engine import run
-from checklist.model import ReplayModel
+from checklist.model import NoModel, ReplayModel
 
 APPS = Path(__file__).resolve().parent.parent / "applications"
 APP_1, APP_2 = APPS / "app-1001-excavator", APPS / "app-1002-tipper"
@@ -40,7 +40,7 @@ def test_application_1_matches_its_expected_report_and_is_audited(tmp_path):
     lines = audit.read_text().splitlines()
     assert len(lines) == 2 and audit.read_text().startswith(first_line)
     logged = json.loads(lines[0])
-    assert logged["model"] == {"provider": "replay", "name": "claude-opus-5-5"}
+    assert logged["model"] == {"provider": "replay", "name": "claude-opus-5-5", "note": None}
     assert logged["criteria"] == [i["criterion"] for i in first["items"]]
 
 
@@ -88,3 +88,20 @@ def test_every_application_file_is_labelled_as_generated():
         if file.is_file():
             head = file.read_bytes()[:200]
             assert b"GENERATED" in head or b"_generated" in head, file
+
+
+class BrokenModel(ReplayModel):
+    def ask(self, task, system, user, schema):
+        raise ConnectionError("endpoint refused")
+
+
+def test_with_the_model_off_structured_items_are_decided_and_the_rest_linked_for_the_analyst():
+    for model, note in ((NoModel(), "model switched off"), (BrokenModel(APP_1 / "model-responses"), "endpoint refused")):
+        report = checklist(APP_1, model)
+        items = {i["criterion"]: i for i in report["items"]}
+        assert note in report["model"]["note"]
+        assert items["crm_record@1"]["state"] == items["credit_report@1"]["state"] == SATISFIED
+        for key in ("drivers_licence@1", "dealer_invoice@1", "financials_two_years@1"):
+            assert (items[key]["state"], items[key]["reason"]) == (UNABLE, "model unavailable")
+            assert items[key]["documents"]
+        assert len(report["documents"]) == 6

@@ -1,4 +1,4 @@
-"""python -m checklist <application folder> [--model anthropic|replay] [--down sharepoint] [--as-of YYYY-MM-DD]"""
+"""python -m checklist <application folder> [--model anthropic|replay|none] [--down sharepoint] [--as-of YYYY-MM-DD]"""
 import argparse
 import tomllib
 from datetime import date
@@ -15,7 +15,7 @@ def main(argv=None):
     config = tomllib.loads((ROOT / "config.toml").read_text())
     parser = argparse.ArgumentParser(prog="checklist", description="Print an application's current-state checklist.")
     parser.add_argument("application", type=Path)
-    parser.add_argument("--model", choices=["anthropic", "replay"], default=config["model"]["provider"])
+    parser.add_argument("--model", choices=["anthropic", "replay", "none"], default=config["model"]["provider"])
     parser.add_argument("--down", action="append", choices=list(SOURCES), default=[],
                         help="simulate a source system being unavailable")
     parser.add_argument("--as-of", type=date.fromisoformat, default=date.today())

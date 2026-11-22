@@ -1,5 +1,6 @@
 [model]
-# anthropic (a real call, needs ANTHROPIC_API_KEY) or replay (the saved responses beside each application)
+# anthropic (a real call, needs ANTHROPIC_API_KEY), replay (the saved responses beside each application)
+# or none (the no-model mode)
 provider = "replay"
 name = "claude-opus-5-5"
 

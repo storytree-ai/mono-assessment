@@ -95,6 +95,8 @@ def decide(c: Criterion, docs: list[Document], extraction: dict, as_of: date, do
         inputs[name] = structured(docs, path).get(key)
         item["sources"].append({"ref": f"{path}#{key}", "value": inputs[name]})
     result = gate(c, found, down) if c.document else None
+    if result is None and c.extracted and extraction is None:
+        result = UNABLE, "model unavailable", "the model is unavailable; open the documents linked below and check by hand"
     for name in c.extracted if result is None else ():
         got = [i for i in extraction["inputs"] if i["criterion"] == c.key and i["name"] == name]
         item["sources"] += [{"ref": i["source"], "quote": i["quote"]} for i in got]
@@ -110,7 +112,7 @@ def decide(c: Criterion, docs: list[Document], extraction: dict, as_of: date, do
     state, reason, detail = result
     item.update(state=state, reason=reason, detail=detail,
                 function={"state": state, "reason": reason, "detail": detail})
-    if reason == "missing":
+    if reason == "missing" and extraction:
         promise = next((p for p in extraction["promises"] if p["criterion"] == c.key), None)
         if promise:
             item["promise"] = {"text": promise["text"], "expected_by": promise["expected_by"] or None,
@@ -140,18 +142,25 @@ def run(folder: Path, model, as_of: date, down: set[str] = frozenset(), audit: P
     docs = load_documents(folder, down)
     record = structured(docs, "crm/record.json")
     criteria = applicable(record) if record else []
-    items = []
+    items, note = [], None
     if criteria:
-        extraction = extract(model, docs, criteria)
+        try:
+            extraction = extract(model, docs, criteria)
+        except Exception as failure:
+            extraction, note = None, f"unavailable ({failure})"
         items = [decide(c, docs, extraction, as_of, down) for c in criteria]
-        annotate(model, docs, items)
+        if extraction:
+            try:
+                annotate(model, docs, items)
+            except Exception as failure:
+                note = f"annotations unavailable ({failure})"
     report = {
         "run_id": uuid.uuid4().hex[:12],
         "run_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "as_of": as_of.isoformat(),
         "folder": str(folder),
         "application": record,
-        "model": {"provider": model.provider, "name": model.name},
+        "model": {"provider": model.provider, "name": model.name, "note": note},
         "sources": {name: "unavailable" if top in down else "up" for top, name in SOURCES.items()},
         "documents": [{"path": d.path, "source": d.source, "status": d.status} for d in docs],
         "criteria": [c.key for c in criteria],

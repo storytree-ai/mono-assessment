@@ -7,6 +7,13 @@ class ModelUnavailable(Exception):
     pass
 
 
+class NoModel:
+    provider, name = "none", "none"
+
+    def ask(self, task, system, user, schema):
+        raise ModelUnavailable("model switched off")
+
+
 class ReplayModel:
     """Returns the responses saved beside an application, so tests never call a model."""
     provider = "replay"
@@ -23,13 +30,12 @@ class AnthropicModel:
     provider = "anthropic"
 
     def __init__(self, name: str, record_to: Path | None = None):
-        import anthropic
-        self.client = anthropic.Anthropic()
         self.name = name
         self.record_to = record_to
 
     def ask(self, task, system, user, schema):
-        response = self.client.messages.create(
+        import anthropic
+        response = anthropic.Anthropic().messages.create(
             model=self.name,
             max_tokens=16000,
             system=system,
@@ -47,6 +53,8 @@ class AnthropicModel:
 
 
 def make_model(provider: str, name: str, application: Path, record: bool = False):
+    if provider == "none":
+        return NoModel()
     if provider == "replay":
         return ReplayModel(application / "model-responses")
     if provider == "anthropic":
