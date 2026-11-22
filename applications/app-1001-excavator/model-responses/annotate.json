@@ -5,36 +5,41 @@
     "annotations": [
       {
         "criterion": "crm_record@1",
-        "what_happened": "",
-        "call_to_action": "",
+        "finding": "",
+        "recommended_action": "",
+        "chase_by": "",
         "concern": "",
         "concern_sources": []
       },
       {
         "criterion": "credit_report@1",
-        "what_happened": "",
-        "call_to_action": "",
+        "finding": "",
+        "recommended_action": "",
+        "chase_by": "",
         "concern": "",
         "concern_sources": []
       },
       {
         "criterion": "drivers_licence@1",
-        "what_happened": "Jordan Avery's driver's licence expired on 30 September 2026, before this application was flagged for review.",
-        "call_to_action": "Ask the broker for a copy of Jordan Avery's current licence.",
+        "finding": "Jordan Avery's licence expired on 30 Sep 2026, before the application was flagged.",
+        "recommended_action": "Ask the broker for the current licence.",
+        "chase_by": "",
         "concern": "",
         "concern_sources": []
       },
       {
         "criterion": "dealer_invoice@1",
-        "what_happened": "The dealer invoice totals $180,000.00 but the CRM records a loan amount of $195,000; the documents do not explain the $15,000 difference.",
-        "call_to_action": "Ask the broker which figure is right and why the loan exceeds the invoice; do not correct either record yourself.",
+        "finding": "Invoice $180,000 vs CRM $195,000, a $15,000 gap the documents don't explain.",
+        "recommended_action": "Ask the broker which figure is right and why the loan exceeds the invoice.",
+        "chase_by": "",
         "concern": "",
         "concern_sources": []
       },
       {
         "criterion": "financials_two_years@1",
-        "what_happened": "Only the FY2025 financial statements are on file; the broker's 18 November email says the FY2024 statements will follow next week.",
-        "call_to_action": "Hold this item open and chase the broker for the FY2024 financials if they have not arrived by the end of next week.",
+        "finding": "FY2025 on file, FY2024 missing; the broker says it's with the accountant, due next week.",
+        "recommended_action": "Chase the broker for the FY2024 financials.",
+        "chase_by": "2026-11-27",
         "concern": "",
         "concern_sources": []
       }

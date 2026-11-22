@@ -7,31 +7,22 @@
         "criterion": "drivers_licence@1",
         "name": "expiry_date",
         "value": "2026-09-30",
-        "source": "sharepoint/drivers-licence.md",
+        "source": "drivers-licence.pdf",
         "quote": "Expiry: 30 SEP 2026"
       },
       {
         "criterion": "dealer_invoice@1",
         "name": "invoice_total",
         "value": "180000",
-        "source": "sharepoint/dealer-invoice.md",
+        "source": "dealer-invoice.pdf",
         "quote": "Total (inc GST): $180,000.00"
       },
       {
         "criterion": "financials_two_years@1",
         "name": "financial_year",
         "value": "FY2025",
-        "source": "sharepoint/financials-fy2025.md",
+        "source": "financials-fy2025.pdf",
         "quote": "Financial statements for the year ended 30 June 2025 (FY2025)"
-      }
-    ],
-    "promises": [
-      {
-        "criterion": "financials_two_years@1",
-        "text": "The broker says the FY2024 financials are with the accountant and will be sent next week.",
-        "expected_by": "",
-        "source": "email/broker-2026-11-18.md",
-        "quote": "The FY2024 financials are with their accountant and I'll send them through next week."
       }
     ]
   }

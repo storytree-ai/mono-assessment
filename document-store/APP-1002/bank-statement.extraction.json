@@ -1,0 +1,6 @@
+{
+  "_generated": "GENERATED: mocked extraction record, standing in for an extraction service's output, build agent 2026-11-22",
+  "document": "bank-statement.pdf",
+  "status": "failed",
+  "error": "the file is not a readable PDF"
+}

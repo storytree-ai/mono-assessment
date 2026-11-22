@@ -7,8 +7,8 @@ What it plants: an expired driver's licence, a dealer invoice ($180,000) that di
 ($195,000), and a missing second year of financials that the broker promises "next week".
 
 - `crm/`: the mocked CRM record and the credit bureau data it holds (structured JSON).
-- `sharepoint/`: mocked SharePoint documents, as plain-text extracts.
+- Its SharePoint documents are in the document store, `document-store/APP-1001/`.
 - `email/`: mocked broker email extracts.
 - `model-responses/`: hand-written model responses in the shape the model returns, replayed by the tests. They are
-  not recordings of a real model call; `python -m checklist <folder> --record` replaces them with real ones.
+  not recordings of a real model call; `checklist app-1001 --model anthropic --save-responses` replaces them with real ones.
 - `expected-report.json`: what the checklist must show for this application (test 1).

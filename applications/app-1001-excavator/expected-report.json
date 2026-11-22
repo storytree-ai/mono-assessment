@@ -24,13 +24,12 @@
       "reason": "inconsistent",
       "sources": [
         "crm/record.json#loan_amount",
-        "sharepoint/dealer-invoice.md"
+        "dealer-invoice.pdf"
       ]
     },
     "financials_two_years@1": {
       "state": "exception",
-      "reason": "missing",
-      "promise_source": "email/broker-2026-11-18.md"
+      "reason": "missing"
     }
   }
 }
