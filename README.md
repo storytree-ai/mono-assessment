@@ -1,16 +1,16 @@
 # Mono assessment
 
-Mick's take-home assessment for Mono, an AI startup.
+Mick's take-home assessment for Mono: an audit checklist prototype for HarbourLine Finance's loan-application exception
+triage. All data here is fictional. The assessment brief is in [`brief/`](brief/).
 
-**Status: first slice built, with the fixes from Mick's review of it, for his review.** The plan lives in the storytree project `mono-assessment`.
+## Problem and release brief
 
-## Problem and release brief (first draft)
+### Outcome
 
-### Outcome (provisional, to be finalised after Mick's build review)
-
-Analysts spend less time chasing missing, expired or contradictory evidence. Each flagged application comes with a
-checklist that shows where each finding came from, so the analyst starts from a short list of problems, not a pile of
-documents. The analyst and the credit officer still make every decision.
+Analysts spend less time chasing missing, expired or contradictory evidence. Each flagged application arrives with a
+checklist of what is missing, out of date or inconsistent, each finding pointing to its source, so the analyst starts
+from a short list of problems rather than a pile of documents. The analyst and the credit officer still make every
+decision. For HarbourLine, that means a smaller backlog and less rework from missed evidence.
 
 ### Discovery: five questions before committing
 
@@ -34,8 +34,8 @@ connections to HarbourLine's systems (all mocked here).
 
 ### Assumptions
 
-- All data here is made up. The CRM, SharePoint and broker emails are mocked, with the documents in one place.
-- We do not know which CRM HarbourLine uses; we assume it is Salesforce-like, as the brief says.
+- The CRM, SharePoint and broker emails are mocked as folders of generated files.
+- HarbourLine's CRM is Salesforce-like, as the brief says.
 - Which criteria apply to a loan can be set in advance as fixed rules. The criteria here are invented; HarbourLine's
   credit policy team would own the real ones.
 - A document reading service turns documents into fields. The prototype uses ready-made records and never reads a
@@ -43,21 +43,51 @@ connections to HarbourLine's systems (all mocked here).
 - Claude on Amazon Bedrock in Sydney would be an approved model service, keeping personal data in Australia.
 - Two test applications are enough to show the flow.
 
-### Success evidence
+### Success
 
-To be written after Mick's build review.
+The pilot is working when, for the pilot analyst group:
 
-## Approach (from Mick, 2026-11-21)
+- preparation time is under 10 minutes per application (32 today);
+- mandatory evidence is extracted with at least 95% accuracy on an agreed test set;
+- nothing is written to a system of record without approval;
+- every statement in a brief traces to its source, or is marked unable to verify;
+- at least 70% of the pilot analysts use it each week (38% use today's tool).
 
-- An AI-compiled audit checklist: an agent pulls the relevant documents together, assesses each against the
-  assessment criteria, and outputs conclusions about the candidate. Each conclusion carries a source link back to its
-  document.
-- Deterministic checks against the criteria where possible. The model adds a one-sentence comment under an item where
-  it finds something odd, quotes its source, and flags contradictions.
-- First slice: mocked documents, all in one place, as a prototype that shows evidence. A full version would pull from
-  SharePoint and the CRM.
+## How it works
 
-The assessment brief (PDF) goes in [`brief/`](brief/).
+Every checklist item is keyed to a versioned lending criterion, and a fixed function decides it: satisfied, exception
+(missing, expired or inconsistent) or unable to verify (for example, a source down or a document unreadable). The
+model only pulls values out of documents, each with a quote and a pointer to where it found it, and adds a finding and
+a recommended action to items that failed or could not be checked. It can raise a concern that turns a satisfied item into an exception, but it can never
+clear one; both its call and the function's are kept in the audit record. Each run reads only the documents it
+fetched, so the checklist always reflects the current sources.
+
+## What the prototype shows
+
+On the two synthetic applications (17 tests, `pytest`):
+
+- APP-1001: the expired driver's licence, the dealer invoice that is $15,000 below the CRM loan amount, and the missing
+  second year of financials are each an exception, each with a quote from and a link to its source.
+- APP-1002: the corrupted bank statement reads unable to verify, for the analyst to check by hand, not missing.
+- Each application's checklist matches its saved expected report, run after run.
+- A model concern raises a satisfied item to an exception and never clears one.
+- With the model off, the CRM checks are still decided and the document items are listed with links; with SharePoint
+  down, its items read unable to verify, never missing, and a document uploaded in the run is still read.
+
+## What was prioritised, what remains, what next
+
+Prioritised, within the two-hour timebox: one narrow, explainable slice (the evidence checklist), with its safeguards
+built in from the start: source pointers, the audit record, safe fallbacks when a model or source is down, and manual
+upload.
+
+What remains, and next:
+
+1. **No measurements yet.** Next: evaluate on HarbourLine's historical cases against the 95% extraction target, once
+   privacy agrees how that data may be used.
+2. **Security hardening is not done.** Next: an adversarial security review covering identity and access (OAuth/OIDC)
+   and tokenising or hashing personal data. It was left out deliberately to respect the timebox.
+
+Further next steps are in [`docs/production-note.md`](docs/production-note.md).
 
 ## Run it
 
@@ -115,3 +145,19 @@ evidence for the analyst and credit officer; it never approves or declines credi
 | `scripts/make_documents.py` | Renders the stored documents as PDFs from their extraction records |
 | `prompts/` | The two prompts the model gets |
 | `applications/` | The two mocked applications, their saved model responses and expected reports |
+
+## Use of AI
+
+- **Tools and models.** Claude, by voice, as a thinking partner: reading the brief, the discovery questions,
+  rehearsing the changed-facts scenarios and reviewing these documents. Voice was used heavily throughout. Storytree's
+  session manager and coding agents (Claude Opus 5.5) for the repository, the planning, the build and these documents.
+  In the prototype, Claude through the Anthropic SDK, for extraction and annotation only.
+- **Delegated.** The code, tests, synthetic data and first drafts of the documents. Mick made the design calls and
+  reviewed the code and the documents.
+- **Rejected or corrected.** The AI proposed a model-assisted check for fuzzy contradictions. Mick re-steered it:
+  fixed functions make every call, and the model only annotates an item that has already failed, with a finding, a
+  recommended action and its sources. He also replaced the AI's state names (clear / needs attention / couldn't
+  check) with lending terms: satisfied / exception / unable to verify.
+- **Verified.** Mick ran the commands himself, read the output on the synthetic applications and gave feedback by
+  voice; the agents reworked the build from it. The executable tests (`pytest`) check each planted issue and failure
+  case.
