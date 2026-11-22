@@ -30,15 +30,29 @@ def assert_matches_expected(report, folder):
     assert report["summary"] == expected["summary"]
 
 
-def test_application_1_matches_its_expected_report_and_is_audited(tmp_path):
-    audit = tmp_path / "audit.jsonl"
-    first = checklist(APP_1, audit=audit)
-    assert_matches_expected(first, APP_1)
-    invoice = next(i for i in first["items"] if i["criterion"] == "dealer_invoice@1")
-    assert invoice["annotation"]["finding"] and invoice["annotation"]["recommended_action"]
-    financials = next(i for i in first["items"] if i["criterion"] == "financials_two_years@1")
+def test_1_3_application_1_matches_its_expected_report():
+    report = checklist(APP_1)
+    assert_matches_expected(report, APP_1)
+    financials = next(i for i in report["items"] if i["criterion"] == "financials_two_years@1")
     assert "next week" in financials["annotation"]["finding"] and financials["annotation"]["chase_by"] == "2026-11-27"
 
+
+def test_2_1_the_crm_record_decides_which_criteria_apply():
+    first, second = ({i["criterion"] for i in checklist(app)["items"]} for app in (APP_1, APP_2))
+    assert "financials_two_years@1" in first and "bank_statements@1" not in first
+    assert "bank_statements@1" in second and "financials_two_years@1" not in second
+
+
+def test_2_2_replayed_application_1_items_take_their_criterion_functions_state():
+    report = checklist(APP_1)
+    assert_matches_expected(report, APP_1)
+    for item in report["items"]:
+        assert (item["state"], item["reason"]) == (item["function"]["state"], item["function"]["reason"]), item["criterion"]
+
+
+def test_2_6_every_run_appends_one_line_to_the_audit_record(tmp_path):
+    audit = tmp_path / "audit.jsonl"
+    first = checklist(APP_1, audit=audit)
     first_line = audit.read_text()
     checklist(APP_1, audit=audit)
     lines = audit.read_text().splitlines()
@@ -48,15 +62,19 @@ def test_application_1_matches_its_expected_report_and_is_audited(tmp_path):
     assert logged["criteria"] == [i["criterion"] for i in first["items"]]
 
 
-def test_application_2_corrupted_document_is_unable_to_verify_not_missing():
+def test_1_4_application_2_matches_its_expected_report():
+    assert_matches_expected(checklist(APP_2), APP_2)
+
+
+def test_2_3_an_unreadable_document_is_unable_to_verify_naming_the_file():
     report = checklist(APP_2)
-    assert_matches_expected(report, APP_2)
     statement = next(i for i in report["items"] if i["criterion"] == "bank_statements@1")
+    assert statement["state"] == UNABLE
     assert "can't be read" in statement["finding"] and statement["action"]
     assert statement["documents"] == ["bank-statement.pdf"]
 
 
-def test_a_source_that_is_down_is_unavailable_never_missing():
+def test_2_4_a_source_that_is_down_is_unavailable_never_missing():
     report = checklist(APP_1, down={"sharepoint"})
     states = {i["criterion"]: (i["state"], i["reason"]) for i in report["items"]}
     for key in ("drivers_licence@1", "dealer_invoice@1", "financials_two_years@1"):
@@ -77,7 +95,10 @@ class ConcernedModel(ReplayModel):
         return answer
 
 
-def test_a_model_concern_raises_a_satisfied_item_and_never_clears_one():
+def test_2_5_a_model_concern_raises_a_satisfied_item_and_never_clears_one():
+    invoice = next(i for i in checklist(APP_1)["items"] if i["criterion"] == "dealer_invoice@1")
+    assert invoice["annotation"]["finding"] and invoice["annotation"]["recommended_action"]
+
     report = checklist(APP_2, ConcernedModel(APP_2 / "model-responses"))
     items = {i["criterion"]: i for i in report["items"]}
     invoice = items["dealer_invoice@1"]
@@ -87,7 +108,7 @@ def test_a_model_concern_raises_a_satisfied_item_and_never_clears_one():
     assert items["bank_statements@1"]["state"] == UNABLE
 
 
-def test_every_application_file_and_stored_document_is_labelled_as_generated():
+def test_1_1_every_application_file_and_stored_document_is_labelled_as_generated():
     stored = [documents.STORE / folder / name for folder in ("APP-1001", "APP-1002")
               for held in documents.stored(documents.STORE / folder) if held["origin"]["origin"] == "SharePoint (mocked)"
               for name in (held["file"], held["file"].rsplit(".", 1)[0] + ".origin.json")]
@@ -116,16 +137,23 @@ class BrokenModel(ReplayModel):
         raise ConnectionError("endpoint refused")
 
 
-def test_with_the_model_off_structured_items_are_decided_and_the_rest_linked_for_the_analyst():
-    for model, note in ((NoModel(), "model switched off"), (BrokenModel(APP_1 / "model-responses"), "endpoint refused")):
-        report = checklist(APP_1, model)
-        items = {i["criterion"]: i for i in report["items"]}
-        assert note in report["model"]["note"]
-        assert items["crm_record@1"]["state"] == items["credit_report@1"]["state"] == SATISFIED
-        for key in ("drivers_licence@1", "dealer_invoice@1", "financials_two_years@1"):
-            assert (items[key]["state"], items[key]["reason"]) == (UNABLE, "model unavailable")
-            assert items[key]["documents"]
-        assert len(report["documents"]) == 6
+def assert_structured_items_decided_and_the_rest_linked(model, note):
+    report = checklist(APP_1, model)
+    items = {i["criterion"]: i for i in report["items"]}
+    assert note in report["model"]["note"]
+    assert items["crm_record@1"]["state"] == items["credit_report@1"]["state"] == SATISFIED
+    for key in ("drivers_licence@1", "dealer_invoice@1", "financials_two_years@1"):
+        assert (items[key]["state"], items[key]["reason"]) == (UNABLE, "model unavailable")
+        assert items[key]["documents"]
+    assert len(report["documents"]) == 6
+
+
+def test_3_1_with_the_model_off_structured_items_are_decided_and_the_rest_linked_for_the_analyst():
+    assert_structured_items_decided_and_the_rest_linked(NoModel(), "model switched off")
+
+
+def test_3_2_a_failing_model_call_degrades_to_the_no_model_report_naming_the_failure():
+    assert_structured_items_decided_and_the_rest_linked(BrokenModel(APP_1 / "model-responses"), "endpoint refused")
 
 
 def test_the_pending_list_holds_every_application_and_each_opens_by_its_id():
