@@ -1,0 +1,36 @@
+{
+  "_generated": "GENERATED: the expected report for APP-1001 (test 1), from Mick's spec of 2026-11-22",
+  "as_of": "2026-11-22",
+  "summary": {
+    "satisfied": 2,
+    "exception": 3,
+    "unable to verify": 0
+  },
+  "items": {
+    "crm_record@1": {
+      "state": "satisfied",
+      "reason": ""
+    },
+    "credit_report@1": {
+      "state": "satisfied",
+      "reason": ""
+    },
+    "drivers_licence@1": {
+      "state": "exception",
+      "reason": "expired"
+    },
+    "dealer_invoice@1": {
+      "state": "exception",
+      "reason": "inconsistent",
+      "sources": [
+        "crm/record.json#loan_amount",
+        "sharepoint/dealer-invoice.md"
+      ]
+    },
+    "financials_two_years@1": {
+      "state": "exception",
+      "reason": "missing",
+      "promise_source": "email/broker-2026-11-18.md"
+    }
+  }
+}

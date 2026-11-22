@@ -1,0 +1,31 @@
+{
+  "_generated": "GENERATED: the expected report for APP-1002 (test 2), from Mick's spec of 2026-11-22",
+  "as_of": "2026-11-22",
+  "summary": {
+    "satisfied": 4,
+    "exception": 0,
+    "unable to verify": 1
+  },
+  "items": {
+    "crm_record@1": {
+      "state": "satisfied",
+      "reason": ""
+    },
+    "credit_report@1": {
+      "state": "satisfied",
+      "reason": ""
+    },
+    "drivers_licence@1": {
+      "state": "satisfied",
+      "reason": ""
+    },
+    "dealer_invoice@1": {
+      "state": "satisfied",
+      "reason": ""
+    },
+    "bank_statements@1": {
+      "state": "unable to verify",
+      "reason": "unreadable"
+    }
+  }
+}

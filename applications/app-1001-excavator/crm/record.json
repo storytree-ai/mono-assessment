@@ -1,0 +1,12 @@
+{
+  "_generated": "GENERATED synthetic CRM record (mock of a Salesforce-like CRM), build agent 2026-11-22",
+  "application_id": "APP-1001",
+  "applicant": "Coastal Earthworks Pty Ltd",
+  "abn": "00 111 222 333",
+  "director": "Jordan Avery",
+  "broker": "Pacific Asset Brokers (Sam Okafor)",
+  "product": "small-business equipment loan",
+  "asset": "2025 Kato HD513 13-tonne excavator",
+  "loan_amount": 195000,
+  "flagged_for_review": "2026-11-19"
+}

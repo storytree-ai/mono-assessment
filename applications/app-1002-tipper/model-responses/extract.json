@@ -1,0 +1,23 @@
+{
+  "_generated": "GENERATED: hand-written by the build agent (2026-11-22) in the shape the model returns; not a recording of a real call",
+  "model": "claude-opus-5-5",
+  "response": {
+    "inputs": [
+      {
+        "criterion": "drivers_licence@1",
+        "name": "expiry_date",
+        "value": "2029-02-04",
+        "source": "sharepoint/drivers-licence.md",
+        "quote": "Expiry: 04 FEB 2029"
+      },
+      {
+        "criterion": "dealer_invoice@1",
+        "name": "invoice_total",
+        "value": "120000",
+        "source": "sharepoint/dealer-invoice.md",
+        "quote": "Total (inc GST): $120,000.00"
+      }
+    ],
+    "promises": []
+  }
+}

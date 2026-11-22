@@ -1,0 +1,12 @@
+{
+  "_generated": "GENERATED synthetic CRM record (mock of a Salesforce-like CRM), build agent 2026-11-22",
+  "application_id": "APP-1002",
+  "applicant": "Riverbend Haulage Pty Ltd",
+  "abn": "00 444 555 666",
+  "director": "Priya Nandakumar",
+  "broker": "direct",
+  "product": "small-business equipment loan",
+  "asset": "2024 Isuzu FVZ 260-300 tipper truck",
+  "loan_amount": 120000,
+  "flagged_for_review": "2026-11-20"
+}
