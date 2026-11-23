@@ -125,6 +125,23 @@ class ConcernedModel(ReplayModel):
         return answer
 
 
+class MisquotingModel(ReplayModel):
+    def ask(self, task, system, user, schema):
+        answer = super().ask(task, system, user, schema)
+        for i in answer.get("inputs", []):
+            if i["criterion"] == "drivers_licence@1":
+                i["quote"] = "Expiry: 30 SEP 2028"
+        return answer
+
+
+def test_a_model_quote_not_found_in_its_source_document_is_unable_to_verify():
+    items = {i["criterion"]: i for i in checklist(APP_1, MisquotingModel(APP_1 / "model-responses"))["items"]}
+    licence = items["drivers_licence@1"]
+    assert (licence["state"], licence["reason"]) == (UNABLE, "please check")
+    assert "isn't in drivers-licence.pdf" in licence["finding"]
+    assert items["dealer_invoice@1"]["state"] == EXCEPTION
+
+
 def test_2_5_a_model_concern_raises_a_satisfied_item_and_never_clears_one():
     invoice = next(i for i in checklist(APP_1)["items"] if i["criterion"] == "dealer_invoice@1")
     assert invoice["annotation"]["finding"] and invoice["annotation"]["recommended_action"]

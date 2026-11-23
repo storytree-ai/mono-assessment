@@ -78,6 +78,12 @@ def gate(c: Criterion, found: list[Document], down: set[str]):
     return None
 
 
+def quoted(docs: list[Document], extracted: dict) -> bool:
+    """The model's quote is in the document it names, word for word apart from spacing."""
+    text = next((d.text for d in docs if d.path == extracted["source"] and d.status == "read"), "")
+    return bool(extracted["quote"].strip()) and " ".join(extracted["quote"].split()) in " ".join(text.split())
+
+
 def decide(c: Criterion, docs: list[Document], extraction: dict, as_of: date, down: set[str]) -> dict:
     found = [d for d in docs if c.document and Path(d.path).name.startswith(c.document)]
     item = {"criterion": c.key, "title": c.title, "applies_when": c.applies_when,
@@ -95,6 +101,10 @@ def decide(c: Criterion, docs: list[Document], extraction: dict, as_of: date, do
         inputs[name] = [i["value"] for i in got]
         if not got or not all(inputs[name]):
             result = UNABLE, "please check", f"The model couldn't read the {name.replace('_', ' ')} clearly."
+            break
+        misquoted = [i["source"] for i in got if not quoted(docs, i)]
+        if misquoted:
+            result = UNABLE, "please check", f"The model's quote for the {name.replace('_', ' ')} isn't in {misquoted[0]}."
             break
     if result is None:
         try:
