@@ -69,7 +69,7 @@ comes up into a plain status or a plain system error, never a traceback.
 
 ## What the prototype shows
 
-On the two synthetic applications (20 tests, `pytest`):
+On the two synthetic applications (22 tests, `pytest`):
 
 - APP-1001: the expired driver's licence, the dealer invoice that is $15,000 below the CRM loan amount, and the missing
   second year of financials are each an exception, each with a quote from and a link to its source.
@@ -93,8 +93,10 @@ upload.
 
 What remains, and next:
 
-1. **No measurements yet.** Next: evaluate on HarbourLine's historical cases against the 95% extraction target, once
-   privacy agrees how that data may be used.
+1. **No measurements yet.** The one live run was checked by hand; no test replays its saved responses, and there is
+   no evaluation command yet. Next: a test that replays `live-responses/` against the expected reports, then one
+   command that reruns every saved case against any model and reports accuracy, then HarbourLine's historical cases
+   against the 95% extraction target, once privacy agrees how that data may be used.
 2. **Security hardening is not done.** Next: an adversarial security review covering identity and access (OAuth/OIDC)
    and tokenising or hashing personal data. It was left out deliberately to respect the timebox.
 
