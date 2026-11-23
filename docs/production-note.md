@@ -19,7 +19,8 @@ flowchart LR
 
 Built: the versioned criteria checks, the model wrapper (replayed by default, one live run kept) and the audit
 record. Mocked: the sources and the document parser's output; no parser is built. Proposed: read-only connectors,
-one parser per document type matching its source's API (for example Amazon Textract), Claude on Bedrock in Sydney.
+a document parser per document type (built by us, on a bought OCR service such as Amazon Textract), Claude on Bedrock
+in Sydney.
 
 ## Identity, access, privacy and audit controls
 
@@ -54,9 +55,11 @@ it touched and add the case to the evaluation set. Rollback: model off in config
 
 ## Analyst adoption and feedback loop
 
-Start with analysts' most painful steps; findings marked wrong are reviewed weekly and join the evaluation set.
-Target: 70% weekly use.
+A staged rollout: start with a small group of analysts and the steps they find most painful. Findings they mark wrong
+are reviewed weekly and join the evaluation set. Expand to more analysts only once that group are advocates for it.
 
 ## Build, buy or reuse
 
-Buy or reuse the model, document parsers, identity, CRM and SharePoint; build only the criteria checks and brief.
+Buy or reuse the model, identity, CRM and SharePoint. Build the criteria checks, the brief and the document parsers:
+HarbourLine has none today, so each document type gets its own parser, built on a bought OCR and layout service (for
+example Amazon Textract) rather than from scratch.
