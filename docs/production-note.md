@@ -30,8 +30,9 @@ tokenising personal data).
 ## Evaluation dataset and acceptance criteria
 
 Past applications, agreed with privacy, each with the result an experienced analyst expects. Accept at 95%
-mandatory-evidence extraction, every statement traced to its source, nothing unchecked shown as satisfied. Rerun before any model or rule change. At 88% pilot accuracy: stay side by side, send the weak fields to
-"please check", and grow the evaluation set until 95%.
+mandatory-evidence extraction, every statement traced to its source, nothing unchecked shown as satisfied. Rerun
+before any model or rule change. At 88% pilot accuracy: stay side by side, send the weak fields to "please check",
+and grow the evaluation set until 95%.
 
 ## Model and system failure modes, and safe fallback
 

@@ -24,10 +24,10 @@ decision. For HarbourLine, that means a smaller backlog and less rework from mis
 
 ### Scope
 
-In: steps 2 to 5 of the current workflow, and a draft of step 6's exception brief. The tool reads an application's documents, CRM record and broker emails,
-checks them against the lending criteria, and lists what is missing, expired or contradictory, each with its source.
-It gives the analyst a short exception brief, keeps a record of every run, takes manual uploads, and still works
-with the model switched off.
+In: steps 2 to 5 of the current workflow, and a draft of step 6's exception brief. The tool reads an application's
+documents, CRM record and broker emails, checks them against the lending criteria, and lists what is missing, expired
+or contradictory, each with its source. It gives the analyst a short exception brief, keeps a record of every run,
+takes manual uploads, and still works with the model switched off.
 
 Out: approving or declining credit, recording the credit officer's decision (step 7), any write to the CRM, and real
 connections to HarbourLine's systems (all mocked here).
@@ -134,10 +134,11 @@ next run; upload again in each run while SharePoint is down. The audit record na
 
 The SharePoint documents are generated PDFs in the mocked SharePoint, `sharepoint/<application id>/`. Each sits
 beside a record of where it came from (`.origin.json`) and a mocked extraction record (`.extraction.json`), and the
-connector caches all three; the checklist reads the extraction through `checklist/cache.py`, the mocked document
-API, and never parses a PDF. That record is where a real document parser would plug in. An uploaded document has
-no parser output, so it reads unable to verify (document parser unavailable). `python3 scripts/make_documents.py` regenerates the PDFs
-from the extraction records, with no extra library. On a terminal, each source is a clickable link to its cached file.
+connector caches all three; the checklist reads the extraction through `checklist/cache.py`, the mocked document API,
+and never parses a PDF. That record is where a real document parser would plug in. An uploaded document has no parser
+output, so it reads unable to verify (document parser unavailable). `python3 scripts/make_documents.py` regenerates
+the PDFs from the extraction records, with no extra library. On a terminal, each source is a clickable link to its
+cached file.
 
 Each item reads as its rule, its state, the finding, the recommended action and the sources. The checklist prepares
 evidence for the analyst and credit officer; it never approves or declines credit (`checklist --help` says so too).
@@ -153,7 +154,7 @@ into `live-responses/`. Every run appends a line to
 | `checklist/engine.py` | A run: pull, offer uploads, then extract, decide, annotate, report, audit |
 | `checklist/connectors.py` | The source connectors (CRM, SharePoint, broker email, all mocked) that fill the cache |
 | `checklist/cache.py` | The local cache and the mocked document API over it: put, read this run's, prune, upload |
-| `checklist/model.py` | The one model wrapper: anthropic, replay or none |
+| `checklist/model.py` | The one model wrapper: anthropic, claude-code, replay or none |
 | `sharepoint/` | The mocked SharePoint: generated PDFs, their origin and mocked extraction records |
 | `scripts/make_documents.py` | Renders the stored documents as PDFs from their extraction records |
 | `prompts/` | The two prompts the model gets |
@@ -164,8 +165,8 @@ into `live-responses/`. Every run appends a line to
 - **Tools and models.** Claude, by voice, as a thinking partner: reading the brief, the discovery questions,
   rehearsing the changed-facts scenarios and reviewing these documents. Voice was used heavily throughout. Storytree's
   session manager and coding agents (Claude Opus 5.5) for the repository, the planning, the build and these documents.
-  In the prototype, Claude Opus 5.5 (set in `config.toml`) through the Anthropic SDK, for extraction and annotation
-  only.
+  In the prototype, Claude Opus 5.5 (set in `config.toml`) through the Anthropic SDK or Claude Code (`claude -p`),
+  for extraction and annotation only.
 - **Delegated.** The code, tests, synthetic data and first drafts of the documents. Mick made the design calls and
   reviewed the code and the documents.
 - **Rejected or corrected.** The AI proposed a model-assisted check for fuzzy contradictions. Mick re-steered it:
