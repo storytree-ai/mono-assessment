@@ -38,7 +38,7 @@ connections to HarbourLine's systems (all mocked here).
 - HarbourLine's CRM is Salesforce-like, as the brief says.
 - Which criteria apply to a loan can be set in advance as fixed rules. The criteria here are invented; HarbourLine's
   credit policy team would own the real ones.
-- A document reading service turns documents into fields. The prototype uses ready-made records and never reads a
+- A document parser turns documents into fields. The prototype uses ready-made records and never reads a
   PDF itself.
 - Claude on Amazon Bedrock in Sydney would be an approved model service, keeping personal data in Australia.
 - Two test applications are enough to show the flow.
@@ -62,11 +62,14 @@ Every checklist item is keyed to a versioned lending criterion, and a fixed func
 model only pulls values out of documents, each with a quote and a pointer to where it found it, and adds a finding and
 a recommended action to items that failed or could not be checked. It can raise a concern that turns a satisfied item
 into an exception, but it can never clear one; both its call and the function's are kept in the audit record. Each run
-reads only the documents it fetched, so the checklist always reflects the current sources.
+reads only the documents it fetched, so the checklist always reflects the current sources. Errors pass up in
+layers: each layer passes up the error it has (a document the parser cannot read stays unable to verify, saying
+why), a layer with no answer from the one below reports it unavailable, and a top-level classifier turns whatever
+comes up into a plain status or a plain system error, never a traceback.
 
 ## What the prototype shows
 
-On the two synthetic applications (17 tests, `pytest`):
+On the two synthetic applications (19 tests, `pytest`):
 
 - APP-1001: the expired driver's licence, the dealer invoice that is $15,000 below the CRM loan amount, and the missing
   second year of financials are each an exception, each with a quote from and a link to its source.
@@ -126,8 +129,8 @@ next run; upload again in each run while SharePoint is down. The audit record na
 The SharePoint documents are generated PDFs in the mocked SharePoint, `sharepoint/<application id>/`. Each sits
 beside a record of where it came from (`.origin.json`) and a mocked extraction record (`.extraction.json`), and the
 connector caches all three; the checklist reads the extraction through `checklist/cache.py`, the mocked document
-API, and never parses a PDF. That record is where a real extraction service would plug in. An uploaded document has
-no extraction record, so it reads "awaiting extraction". `python3 scripts/make_documents.py` regenerates the PDFs
+API, and never parses a PDF. That record is where a real document parser would plug in. An uploaded document has
+no parser output, so it reads unable to verify (document parser unavailable). `python3 scripts/make_documents.py` regenerates the PDFs
 from the extraction records, with no extra library. On a terminal, each source is a clickable link to its cached file.
 
 Each item reads as its rule, its state, the finding, the recommended action and the sources. The checklist prepares

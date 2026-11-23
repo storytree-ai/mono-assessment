@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from checklist import __main__ as cli
 from checklist.__main__ import find, pending
 from checklist import cache
 from checklist.connectors import SHAREPOINT
@@ -82,6 +83,27 @@ def test_2_3_an_unreadable_document_is_unable_to_verify_naming_the_file():
     assert statement["documents"] == ["bank-statement.pdf"]
 
 
+def test_the_document_parsers_own_error_passes_up_into_the_finding():
+    report = checklist(APP_2)
+    statement = next(i for i in report["items"] if i["criterion"] == "bank_statements@1")
+    assert (statement["state"], statement["reason"]) == (UNABLE, "unreadable")
+    assert "bank-statement.pdf (the file is not a readable PDF) can't be read." in render(report)
+
+
+def test_an_error_no_layer_turned_into_a_status_reaches_the_analyst_as_a_plain_system_error(monkeypatch, capsys):
+    def broken(*args, **kwargs):
+        raise KeyError("crm_record")
+
+    monkeypatch.setattr(cli, "run", broken)
+    for argv, raw in ((["app-1001"], False), (["app-1001", "--details"], True)):
+        with pytest.raises(SystemExit) as stopped:
+            cli.main(argv)
+        assert stopped.value.code != 0
+        said = capsys.readouterr()
+        assert "could not be built: a system error, not a finding about this application" in said.err
+        assert "Traceback" not in said.err + said.out and ("crm_record" in said.err) == raw
+
+
 def test_2_4_a_source_that_is_down_is_unavailable_never_missing():
     report = checklist(APP_1, down={"sharepoint"})
     states = {i["criterion"]: (i["state"], i["reason"]) for i in report["items"]}
@@ -154,7 +176,7 @@ def test_twist_4_an_upload_in_the_run_is_read_while_sharepoint_is_down(local_cac
     assert offered == ["crm/credit-report.json", "crm/record.json", "email/broker-2026-11-18.md"]
     items = {i["criterion"]: i for i in report["items"]}
     licence = items["drivers_licence@1"]
-    assert (licence["state"], licence["reason"], licence["annotation"]) == (UNABLE, cache.AWAITING, None)
+    assert (licence["state"], licence["reason"], licence["annotation"]) == (UNABLE, "document parser unavailable", None)
     assert licence["documents"] == ["drivers-licence.pdf"] and "drivers-licence.pdf" in render(report)
     invoice = items["dealer_invoice@1"]
     assert (invoice["state"], invoice["reason"], invoice["annotation"]) == (UNABLE, "source unavailable", None)

@@ -20,7 +20,7 @@ flowchart LR
 | Part | In the prototype | In production |
 |---|---|---|
 | CRM, SharePoint, broker email | Mocked: folders of generated files (`sharepoint/`, `applications/`), pulled into `cache/` | Read-only connectors into HarbourLine's systems |
-| Reading documents | Mocked: ready-made extraction records beside each PDF | A document reading service, for example Amazon Textract |
+| Document parser | None built: ready-made parser output beside each PDF | One parser per document type, each matching its source's API (for example Amazon Textract) |
 | Lending criteria | Built: `checklist/criteria.py`, invented rules, versioned | HarbourLine's rules, owned by credit policy |
 | Model | Built: Claude through the Anthropic API, behind `checklist/model.py`; by default, saved responses replayed | Claude on Amazon Bedrock in Sydney: a small provider added to the wrapper, then set in config |
 | Audit record | Built: a line per run in `audit/` | An append-only store in the tenant |
@@ -41,7 +41,8 @@ satisfied. Rerun before any model or rule change; add every error found in use.
 
 - Model down or not allowed: the fixed checks still run; document items read "unable to verify" with links.
 - A source down: its items read "unable to verify", never missing; a manual upload is still read.
-- An unreadable document: "unable to verify", for the analyst to check by hand.
+- Each layer passes up the error it has (an unreadable document stays "unable to verify", saying why); a layer with
+  no answer from the one below reports it unavailable; a top-level classifier turns the rest into a plain system error.
 - The model can raise a concern on an item, but never clear one.
 
 ## Pilot, human review and rollout sequence
@@ -63,7 +64,7 @@ evaluation set. Target: 70% weekly use. Tell analysts plainly when something is 
 
 ## Build, buy or reuse
 
-Buy or reuse the model, document reading, identity, CRM and SharePoint; build only the criteria checks and brief.
+Buy or reuse the model, document parsers, identity, CRM and SharePoint; build only the criteria checks and brief.
 
 ## Next steps, not built here
 

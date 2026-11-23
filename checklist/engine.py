@@ -57,7 +57,7 @@ def extract(model, docs: list[Document], criteria: list[Criterion]) -> dict:
 HAND_CHECK = {
     "source unavailable": "Fetch the document by hand and upload it in a new run, or rerun once SharePoint is back.",
     "unreadable": "Open the file and check it by hand, or ask for a fresh copy.",
-    AWAITING: "Open the file and check it by hand, or rerun once it has been extracted.",
+    AWAITING: "Open the file and check it by hand.",
     "model unavailable": "Open the documents below and check them by hand.",
     "please check": "Check the document by hand.",
 }
@@ -69,12 +69,12 @@ def gate(c: Criterion, found: list[Document], down: set[str]):
         return UNABLE, "source unavailable", "SharePoint is unavailable and nothing was uploaded for this in this run."
     if not found:
         return EXCEPTION, "missing", f"No {c.document.replace('-', ' ')} on file."
-    unreadable = [Path(d.path).name for d in found if d.status == "unreadable"]
+    unreadable = [Path(d.path).name + (f" ({d.error})" if d.error else "") for d in found if d.status == "unreadable"]
     if unreadable:
         return UNABLE, "unreadable", f"{', '.join(unreadable)} can't be read."
     waiting = [d.path for d in found if d.status == AWAITING]
     if waiting:
-        return UNABLE, AWAITING, f"{', '.join(waiting)}: awaiting extraction."
+        return UNABLE, AWAITING, f"{', '.join(waiting)}: no document parser has read it."
     return None
 
 
@@ -117,6 +117,8 @@ def annotate(model, docs: list[Document], items: list[dict]) -> None:
         item = by_key.get(note["criterion"])
         if item is None or item["reason"] in (AWAITING, "source unavailable"):
             continue
+        if item["reason"] == "unreadable":  # the parser's own error stays the finding
+            note["finding"] = ""
         if note["finding"] or note["recommended_action"]:
             item["annotation"] = {k: note[k] for k in ("finding", "recommended_action", "chase_by")}
         if note["concern"]:

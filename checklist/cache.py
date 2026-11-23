@@ -2,7 +2,7 @@
 
 Each cached file sits beside <stem>.origin.json, naming where it came from and the run that put it there; a document
 also sits beside <stem>.extraction.json, what was read from it. That extraction record is the seam where a real
-extraction service (for example Azure Document Intelligence or Amazon Textract) would write; here the records come
+document parser (for example Azure Document Intelligence or Amazon Textract) would write; here the records come
 from the mocked SharePoint, so nothing in the checklist parses a PDF. A run reads only what it cached itself:
 anything from another run is stale and treated as not there.
 """
@@ -15,7 +15,7 @@ from pathlib import Path
 
 CACHE = Path(__file__).resolve().parent.parent / "cache"
 DOCUMENTS = "documents"
-AWAITING = "awaiting extraction"
+AWAITING = "document parser unavailable"
 
 
 @dataclass
@@ -25,6 +25,7 @@ class Document:
     status: str
     text: str = ""
     file: str = ""
+    error: str = ""
 
 
 def now() -> str:
@@ -64,7 +65,8 @@ def read(application: Path, run_id: str, sources: dict[str, str]) -> list[Docume
         if file.parent.name == DOCUMENTS:
             extraction = entry["extraction"] or {"status": AWAITING}
             status = {"done": "read", "failed": "unreadable"}.get(extraction["status"], AWAITING)
-            docs.append(Document(entry["path"], source, status, extraction.get("text", ""), str(file)))
+            docs.append(Document(entry["path"], source, status, extraction.get("text", ""), str(file),
+                                 extraction.get("error", "")))
             continue
         try:
             text = file.read_text(encoding="utf-8")

@@ -45,7 +45,7 @@ def application(application_id: str) -> Path:
 
 def list_documents(folder: Path, cache_root: Path) -> str:
     held = cache_folder(cache_root, folder)
-    status = {"done": "extracted", "failed": "extraction failed"}
+    status = {"done": "parsed", "failed": "parser failed"}
     lines = []
     for e in cache.held(held):
         state = "record" if "/" in e["path"] else status.get((e["extraction"] or {}).get("status"), cache.AWAITING)
@@ -73,8 +73,21 @@ def offer_upload(docs: list) -> list[tuple]:
     return uploads
 
 
+SYSTEM_ERROR = "The checklist could not be built: a system error, not a finding about this application."
+
+
 def main(argv=None):
+    """The top-level classifier: an error no lower layer turned into a status is a plain system error, never a
+    traceback; the raw error shows only under --details."""
     argv = sys.argv[1:] if argv is None else argv
+    try:
+        checklist(argv)
+    except Exception as error:
+        print(SYSTEM_ERROR + (f"\n{type(error).__name__}: {error}" if "--details" in argv else ""), file=sys.stderr)
+        sys.exit(1)
+
+
+def checklist(argv: list[str]):
     config = tomllib.loads((ROOT / "config.toml").read_text())
     cache_root = ROOT / config["cache"]["path"]
     if argv[:1] == ["documents"]:
