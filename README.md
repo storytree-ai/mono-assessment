@@ -67,6 +67,8 @@ layers: each layer passes up the error it has (a document the parser cannot read
 why), a layer with no answer from the one below reports it unavailable, and a top-level classifier turns whatever
 comes up into a plain status or a plain system error, never a traceback.
 
+The architecture diagram is in [`docs/production-note.md`](docs/production-note.md).
+
 ## What the prototype shows
 
 On the two synthetic applications (22 tests, `pytest`):
@@ -124,31 +126,12 @@ checklist app-1001 --as-of 2026-11-22 --model claude-code     # a real call thro
 checklist documents app-1001                                  # what the cache holds for an application, by run
 ```
 
-Opening an application starts a run with its own id. The run drops cache entries older than `retention_days`
-(`[cache]` in `config.toml`, 14), then each source connector (`checklist/connectors.py`: the CRM, SharePoint and broker
-email, all mocked) pulls into the local cache, `cache/<application id>/`, a folder standing in for a cloud bucket.
-At a terminal, the run then lists what it fetched and offers to upload more documents: a file path, then its kind and
-where it came from. The checklist reads only the cache, and only what this run put there: every file carries the
-run's id in its origin record, and anything from an earlier run is stale and reads as if it were not there. So
-`--simulate-outage sharepoint` stops only the SharePoint pull: a document uploaded in this run is still read, and an
-item with nothing in this run's cache reads unable to verify (source unavailable). Uploads are not carried to the
-next run; upload again in each run while SharePoint is down. The audit record names the run id.
-
-The SharePoint documents are generated PDFs in the mocked SharePoint, `sharepoint/<application id>/`. Each sits
-beside a record of where it came from (`.origin.json`) and a mocked extraction record (`.extraction.json`), and the
-connector caches all three; the checklist reads the extraction through `checklist/cache.py`, the mocked document API,
-and never parses a PDF. That record is where a real document parser would plug in. An uploaded document has no parser
-output, so it reads unable to verify (document parser unavailable). `python3 scripts/make_documents.py` regenerates
-the PDFs from the extraction records, with no extra library. On a terminal, each source is a clickable link to its
-cached file.
-
-Each item reads as its rule, its state, the finding, the recommended action and the sources. The checklist prepares
-evidence for the analyst and credit officer; it never approves or declines credit (`checklist --help` says so too).
-`--save-responses` saves a real model's responses: `--model anthropic` over the hand-written ones, `--model claude-code`
-into `live-responses/`. Every run appends a line to
-`audit/audit.jsonl`. The provider and model are set in `config.toml`. The production path is in
-[`docs/production-note.md`](docs/production-note.md); the COO update and harvest bullets are in
-[`docs/client-update.md`](docs/client-update.md).
+Each run pulls from the mocked sources (CRM, SharePoint, broker email) into a local cache and reads only what it
+fetched, so `--simulate-outage sharepoint` stops one source while a document uploaded at the prompt is still read. The
+SharePoint documents are generated PDFs in `sharepoint/`, each with a mocked extraction record where a real document
+parser would plug in. Every run appends a line to `audit/audit.jsonl`. The model is set in `config.toml`, and
+`--save-responses` keeps a live model's responses. The checklist prepares evidence; it never approves or declines
+credit. The COO update and harvest bullets are in [`docs/client-update.md`](docs/client-update.md).
 
 | Folder | What it is |
 |---|---|
@@ -171,10 +154,11 @@ into `live-responses/`. Every run appends a line to
   for extraction and annotation only.
 - **Delegated.** The code, tests, synthetic data and first drafts of the documents. Mick made the design calls and
   reviewed the code and the documents.
-- **Rejected or corrected.** The AI proposed a model-assisted check for fuzzy contradictions. Mick re-steered it:
-  fixed functions make every call, and the model only annotates an item that has already failed, with a finding, a
-  recommended action and its sources (it can raise a concern, never clear one). He also replaced the AI's state names
-  (clear / needs attention / couldn't check) with lending terms: satisfied / exception / unable to verify.
+- **Rejected or corrected.** The most important: the AI proposed a model-assisted check for fuzzy contradictions.
+  Mick re-steered it: fixed functions make every call, and the model only annotates an item that has already failed,
+  with a finding, a recommended action and its sources (it can raise a concern, never clear one). Another example: he
+  replaced the AI's state names (clear / needs attention / couldn't check) with lending terms: satisfied / exception /
+  unable to verify.
 - **Verified.** Mick ran the commands himself, read the output on the synthetic applications and gave feedback by
   voice; the agents reworked the build from it. The executable tests (`pytest`) check each planted issue and failure
   case.
