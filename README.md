@@ -98,7 +98,7 @@ What remains, and next:
 2. **Security hardening is not done.** Next: an adversarial security review covering identity and access (OAuth/OIDC)
    and tokenising or hashing personal data. It was left out deliberately to respect the timebox.
 
-Further next steps are in [`docs/production-note.md`](docs/production-note.md).
+The production path is in [`docs/production-note.md`](docs/production-note.md).
 
 ## Run it
 
@@ -144,7 +144,7 @@ Each item reads as its rule, its state, the finding, the recommended action and 
 evidence for the analyst and credit officer; it never approves or declines credit (`checklist --help` says so too).
 `--save-responses` saves a real model's responses: `--model anthropic` over the hand-written ones, `--model claude-code`
 into `live-responses/`. Every run appends a line to
-`audit/audit.jsonl`. The provider and model are set in `config.toml`. Next steps are in
+`audit/audit.jsonl`. The provider and model are set in `config.toml`. The production path is in
 [`docs/production-note.md`](docs/production-note.md); the COO update and harvest bullets are in
 [`docs/client-update.md`](docs/client-update.md).
 
