@@ -1,0 +1,29 @@
+{
+  "_generated": "GENERATED: recorded model response (claude-code)",
+  "model": "claude-opus-5-5",
+  "response": {
+    "inputs": [
+      {
+        "criterion": "drivers_licence@1",
+        "name": "expiry_date",
+        "value": "2026-09-30",
+        "source": "drivers-licence.pdf",
+        "quote": "Expiry: 30 SEP 2026"
+      },
+      {
+        "criterion": "dealer_invoice@1",
+        "name": "invoice_total",
+        "value": "180000.00",
+        "source": "dealer-invoice.pdf",
+        "quote": "Total (inc GST): $180,000.00"
+      },
+      {
+        "criterion": "financials_two_years@1",
+        "name": "financial_year",
+        "value": "FY2025",
+        "source": "financials-fy2025.pdf",
+        "quote": "Financial statements for the year ended 30 June 2025 (FY2025)"
+      }
+    ]
+  }
+}

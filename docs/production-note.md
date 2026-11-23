@@ -1,38 +1,62 @@
-# Production note: next steps (draft, first slice)
+# Production note
 
-Status: a short note from the build session (2026-11-22), not the brief's full one-page Deliverable 3. Who writes
-that in full is open on the plan (question_f2bf84606c30).
+## Target architecture and data flow
 
-## What the first slice is
+```mermaid
+flowchart LR
+  subgraph tenant["HarbourLine's Australian tenant"]
+    direction LR
+    src["CRM, SharePoint,<br/>broker email<br/>(read-only connectors)"] --> cache["The run's<br/>local cache"]
+    up["Manual upload"] --> cache
+    cache --> model["Model extraction:<br/>values with source pointers<br/>(Claude on Bedrock, Sydney)"]
+    model --> checks["Fixed criteria checks<br/>(versioned)"]
+    cache --> checks
+    checks --> notes["Model notes on failed items<br/>(can raise, never clear)"] --> brief["Exception brief<br/>for the analyst"]
+    checks --> audit["Append-only audit record<br/>(a line per run)"]
+    brief --> people["Analyst and credit officer<br/>make every decision"]
+  end
+```
 
-| Part | Here | In production |
-|---|---|---|
-| CRM, broker email | Mocked: folders of generated synthetic files | Read-only connectors into HarbourLine's systems |
-| SharePoint documents | Generated PDFs in a local document store (`document-store/`), read through mocked extraction records | A cloud bucket in the Australian tenant, with an extraction service (for example Amazon Textract or Azure Document Intelligence) writing the records |
-| Lending criteria | `checklist/criteria.py`, synthetic policy, versioned keys | HarbourLine's own mandatory-evidence rules, owned by credit policy |
-| Model | Claude through the Anthropic API, behind `checklist/model.py`; tests and the default run replay saved responses | Claude on Amazon Bedrock in the Sydney region (below) |
-| Audit record | Append-only JSON lines in `audit/` | An append-only store inside the Australian tenant |
+Built: the versioned criteria checks, the model wrapper (replayed by default, one live run kept) and the audit
+record. Mocked: the sources and the document parser's output; no parser is built. Proposed: read-only connectors,
+one parser per document type matching its source's API (for example Amazon Textract), Claude on Bedrock in Sydney.
 
-## Production target: Claude on Amazon Bedrock in Sydney
+## Identity, access, privacy and audit controls
 
-The brief requires personal data to stay in HarbourLine's Australian tenant and raw customer data never to reach an
-unapproved external endpoint. The prototype sends only synthetic data to the Anthropic API. In production the same
-wrapper takes a Bedrock provider pointed at `ap-southeast-2` (Sydney) in HarbourLine's own AWS account, so documents
-never leave the tenant; the provider stays one config setting, so a privacy ruling against an endpoint is a config
-change plus a rerun of the evaluation set, with the no-model mode covering the gap.
+Personal data stays in the Australian tenant; the tool is read-only; analysts sign in through HarbourLine's identity
+provider; each run records its model, sources and rule versions. Before the pilot: a security review (OAuth/OIDC,
+tokenising personal data).
 
-## Next steps, not built in this slice
+## Evaluation dataset and acceptance criteria
 
-1. **Evaluation-set rerun command.** One command that reruns every saved case (starting with the two applications
-   here) against any provider and model and reports extraction accuracy against the expected reports, so a new
-   model is judged in minutes; every failing case found in use is added to the set (ADR-0001, twists 1, 2 and 5).
-2. **Manual upload path: now built** (ADR-0004). `checklist upload` puts a document into the store and records
-   where it came from (by whom, when, from where); it reads "awaiting extraction" until its extraction record
-   arrives. Next: an extraction service writing those records, and uploads counting while SharePoint is down
-   (twist 4; open on the plan).
-3. **CRM-update draft with approval.** The tool drafts the CRM update (for example the exception summary) for the
-   analyst to accept after review; nothing is written automatically, keeping the release read-only and every write
-   human-approved (twist 3).
-4. **Structured sidecar for the no-model mode.** Documents arriving with their key fields already structured (from a
-   document API or the upload form: licence expiry, invoice total), so more items are decided with the model off;
-   today those items read "unable to verify (model unavailable)" with links (question_b9e15794f3c0, option 2).
+Past applications, agreed with privacy, each with the result an experienced analyst expects. Accept at 95%
+mandatory-evidence extraction, every statement traced to its source, nothing unchecked shown as satisfied. Rerun
+before any model or rule change. At 88% pilot accuracy: stay side by side, send the weak fields to "please check",
+and grow the evaluation set until 95%.
+
+## Model and system failure modes, and safe fallback
+
+- Model down or not allowed: fixed checks still run; document items read "unable to verify".
+- A source down or delayed a week: "unable to verify", never missing; uploads are still read.
+- A model quote not found in its source: "unable to verify" ("please check").
+- Each layer passes up the error it has (an unreadable document stays "unable to verify", saying why); a layer with
+  no answer from below reports it unavailable; a top-level classifier turns the rest into a plain system error.
+
+## Pilot, human review and rollout sequence
+
+Pilot analysts run it beside their usual process, then brief from it, then the group widens. Analysts review every
+item; credit officers make every decision. Their engineer (four hours a week) grants access.
+
+## Monitoring, incident response and rollback
+
+Watch preparation time, weekly use and "unable to verify" rates. An error found after use: recheck every application
+it touched and add the case to the evaluation set. Rollback: model off in config.
+
+## Analyst adoption and feedback loop
+
+Start with analysts' most painful steps; findings marked wrong are reviewed weekly and join the evaluation set.
+Target: 70% weekly use.
+
+## Build, buy or reuse
+
+Buy or reuse the model, document parsers, identity, CRM and SharePoint; build only the criteria checks and brief.

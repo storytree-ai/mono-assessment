@@ -6,3 +6,9 @@ name = "claude-opus-5-5"
 
 [audit]
 path = "audit/audit.jsonl"
+
+[cache]
+# The local cache the source connectors fill, standing in for a cloud bucket. Each run reads only what it cached;
+# entries older than retention_days are dropped at the start of a run.
+path = "cache"
+retention_days = 14

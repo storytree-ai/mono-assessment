@@ -1,4 +1,4 @@
-"""Writes each extracted document in the store as a one-page PDF of its text (GENERATED synthetic documents).
+"""Writes each extracted document in the mocked SharePoint as a one-page PDF of its text (GENERATED synthetic documents).
 
 The extraction records are the source of truth for the mocked documents; this script renders them as real files
 so an analyst can open them. It needs no library: the PDF is written by hand.
@@ -6,7 +6,7 @@ so an analyst can open them. It needs no library: the PDF is written by hand.
 import json
 from pathlib import Path
 
-STORE = Path(__file__).resolve().parent.parent / "document-store"
+STORE = Path(__file__).resolve().parent.parent / "sharepoint"
 
 
 def pdf(lines: list[str]) -> bytes:
