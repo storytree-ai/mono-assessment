@@ -1,12 +1,14 @@
 import json
 import re
-import shutil
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-import checklist.__main__ as command
+import pytest
+
+from checklist import __main__ as cli
 from checklist.__main__ import find, main, pending
-from checklist import documents
+from checklist import cache
+from checklist.connectors import SHAREPOINT
 from checklist.criteria import CRITERIA, EXCEPTION, EXTRACTED_INPUTS, SATISFIED, UNABLE
 from checklist.engine import run
 from checklist.model import NoModel, ReplayModel
@@ -15,6 +17,12 @@ from checklist.report import render
 APPS = Path(__file__).resolve().parent.parent / "applications"
 APP_1, APP_2 = APPS / "app-1001-excavator", APPS / "app-1002-tipper"
 AS_OF = date(2026, 11, 22)
+
+
+@pytest.fixture(autouse=True)
+def local_cache(tmp_path, monkeypatch):
+    monkeypatch.setattr(cache, "CACHE", tmp_path / "cache")
+    return tmp_path / "cache"
 
 
 def checklist(folder, model=None, **kwargs):
@@ -92,6 +100,27 @@ def test_2_3_an_unreadable_document_is_unable_to_verify_naming_the_file():
     assert statement["documents"] == ["bank-statement.pdf"]
 
 
+def test_the_document_parsers_own_error_passes_up_into_the_finding():
+    report = checklist(APP_2)
+    statement = next(i for i in report["items"] if i["criterion"] == "bank_statements@1")
+    assert (statement["state"], statement["reason"]) == (UNABLE, "unreadable")
+    assert "bank-statement.pdf (the file is not a readable PDF) can't be read." in render(report)
+
+
+def test_an_error_no_layer_turned_into_a_status_reaches_the_analyst_as_a_plain_system_error(monkeypatch, capsys):
+    def broken(*args, **kwargs):
+        raise KeyError("crm_record")
+
+    monkeypatch.setattr(cli, "run", broken)
+    for argv, raw in ((["app-1001"], False), (["app-1001", "--details"], True)):
+        with pytest.raises(SystemExit) as stopped:
+            cli.main(argv)
+        assert stopped.value.code != 0
+        said = capsys.readouterr()
+        assert "could not be built: a system error, not a finding about this application" in said.err
+        assert "Traceback" not in said.err + said.out and ("crm_record" in said.err) == raw
+
+
 def test_2_4_a_source_that_is_down_is_unavailable_never_missing():
     report = checklist(APP_1, down={"sharepoint"})
     states = {i["criterion"]: (i["state"], i["reason"]) for i in report["items"]}
@@ -113,6 +142,23 @@ class ConcernedModel(ReplayModel):
         return answer
 
 
+class MisquotingModel(ReplayModel):
+    def ask(self, task, system, user, schema):
+        answer = super().ask(task, system, user, schema)
+        for i in answer.get("inputs", []):
+            if i["criterion"] == "drivers_licence@1":
+                i["quote"] = "Expiry: 30 SEP 2028"
+        return answer
+
+
+def test_a_model_quote_not_found_in_its_source_document_is_unable_to_verify():
+    items = {i["criterion"]: i for i in checklist(APP_1, MisquotingModel(APP_1 / "model-responses"))["items"]}
+    licence = items["drivers_licence@1"]
+    assert (licence["state"], licence["reason"]) == (UNABLE, "please check")
+    assert "isn't in drivers-licence.pdf" in licence["finding"]
+    assert items["dealer_invoice@1"]["state"] == EXCEPTION
+
+
 def test_2_5_a_model_concern_raises_a_satisfied_item_and_never_clears_one():
     invoice = next(i for i in checklist(APP_1)["items"] if i["criterion"] == "dealer_invoice@1")
     assert invoice["annotation"]["finding"] and invoice["annotation"]["recommended_action"]
@@ -126,28 +172,62 @@ def test_2_5_a_model_concern_raises_a_satisfied_item_and_never_clears_one():
     assert items["bank_statements@1"]["state"] == UNABLE
 
 
-def test_1_1_every_application_file_and_stored_document_is_labelled_as_generated():
-    stored = [documents.STORE / folder / name for folder in ("APP-1001", "APP-1002")
-              for held in documents.stored(documents.STORE / folder) if held["origin"]["origin"] == "SharePoint (mocked)"
-              for name in (held["file"], held["file"].rsplit(".", 1)[0] + ".origin.json")]
-    for file in [*APPS.rglob("*"), *documents.STORE.glob("*/*.extraction.json"), *stored]:
-        if file.is_file():
-            head = file.read_bytes()[:200]
-            assert b"GENERATED" in head or b"_generated" in head, file
-    assert len(stored) == 12
+def test_1_1_every_application_file_and_mocked_sharepoint_document_is_labelled_as_generated():
+    files = [f for f in (*APPS.rglob("*"), *SHAREPOINT.rglob("*")) if f.is_file()]
+    for file in files:
+        head = file.read_bytes()[:200]
+        assert b"GENERATED" in head or b"_generated" in head, file
+    assert len([f for f in files if f.suffix == ".pdf"]) == 6
 
 
-def test_an_uploaded_document_with_no_extraction_record_reads_awaiting_extraction(tmp_path):
-    shutil.copytree(documents.STORE / "APP-1001", tmp_path / "APP-1001")
+def test_a_run_stamps_everything_it_caches_with_its_id_and_the_audit_names_it(local_cache, tmp_path):
+    report = checklist(APP_1, audit=tmp_path / "audit.jsonl")
+    held = cache.held(local_cache / "APP-1001")
+    assert len(held) == 6 and {e["origin"]["run_id"] for e in held} == {report["run_id"]}
+    assert json.loads((tmp_path / "audit.jsonl").read_text())["run_id"] == report["run_id"]
+
+
+def test_a_stale_document_from_another_run_reads_unavailable(local_cache):
+    earlier = checklist(APP_1)
+    report = checklist(APP_1, down={"sharepoint"})
+    stale = [e for e in cache.held(local_cache / "APP-1001") if e["origin"]["run_id"] == earlier["run_id"]]
+    assert {e["path"] for e in stale} == {"dealer-invoice.pdf", "drivers-licence.pdf", "financials-fy2025.pdf"}
+    licence = next(i for i in report["items"] if i["criterion"] == "drivers_licence@1")
+    assert (licence["state"], licence["reason"], licence["documents"]) == (UNABLE, "source unavailable", [])
+    assert not any(d["source"] == "SharePoint" for d in report["documents"])
+
+
+def test_twist_4_an_upload_in_the_run_is_read_while_sharepoint_is_down(local_cache, tmp_path):
     scan = tmp_path / "licence-scan.PDF"
     scan.write_bytes(b"%PDF-1.4 a scan the analyst fetched by hand")
-    assert documents.upload(tmp_path / "APP-1001", scan, "drivers-licence", "emailed by the broker") == "drivers-licence-2.pdf"
-    held = {h["file"]: h for h in documents.stored(tmp_path / "APP-1001")}
-    assert held["drivers-licence-2.pdf"]["origin"]["uploaded_from"] == str(scan)
-    assert held["drivers-licence-2.pdf"]["extraction"]["status"] == documents.AWAITING
-    licence = next(i for i in checklist(APP_1, store=tmp_path)["items"] if i["criterion"] == "drivers_licence@1")
-    assert (licence["state"], licence["reason"], licence["annotation"]) == (UNABLE, documents.AWAITING, None)
-    assert "drivers-licence-2.pdf" in licence["finding"] and "drivers-licence-2.pdf" in render(checklist(APP_1, store=tmp_path))
+    offered = []
+
+    def offer(docs):
+        offered.extend(d.path for d in docs)
+        return [(scan, "drivers-licence", "emailed by the broker")]
+
+    report = checklist(APP_1, down={"sharepoint"}, offer_upload=offer)
+    assert offered == ["crm/credit-report.json", "crm/record.json", "email/broker-2026-11-18.md"]
+    items = {i["criterion"]: i for i in report["items"]}
+    licence = items["drivers_licence@1"]
+    assert (licence["state"], licence["reason"], licence["annotation"]) == (UNABLE, "document parser unavailable", None)
+    assert licence["documents"] == ["drivers-licence.pdf"] and "drivers-licence.pdf" in render(report)
+    invoice = items["dealer_invoice@1"]
+    assert (invoice["state"], invoice["reason"], invoice["annotation"]) == (UNABLE, "source unavailable", None)
+    upload = next(e for e in cache.held(local_cache / "APP-1001") if e["path"] == "drivers-licence.pdf")
+    assert upload["origin"]["run_id"] == report["run_id"] and upload["origin"]["uploaded_from"] == str(scan)
+
+
+def test_cache_entries_older_than_the_retention_period_are_dropped_at_the_start_of_a_run(local_cache):
+    checklist(APP_1)
+    origin_file = local_cache / "APP-1001" / "documents" / "dealer-invoice.origin.json"
+    origin = json.loads(origin_file.read_text())
+    origin["cached_at"] = (datetime.now(timezone.utc) - timedelta(days=15)).isoformat()
+    origin_file.write_text(json.dumps(origin))
+    checklist(APP_1, retention_days=14, down={"sharepoint"})
+    paths = {e["path"] for e in cache.held(local_cache / "APP-1001")}
+    assert "dealer-invoice.pdf" not in paths and "drivers-licence.pdf" in paths
+    assert not (local_cache / "APP-1001" / "documents" / "dealer-invoice.pdf").exists()
 
 
 class BrokenModel(ReplayModel):
@@ -208,9 +288,9 @@ def model_line(capsys, tmp_path, argv):
 
 
 def test_2_7_the_checklist_command_prints_the_report_with_the_configured_model_unless_model_overrides_it(tmp_path, monkeypatch, capsys):
-    config = (command.ROOT / "config.toml").read_text()
+    config = (cli.ROOT / "config.toml").read_text()
     (tmp_path / "config.toml").write_text(config)
-    monkeypatch.setattr(command, "ROOT", tmp_path)
+    monkeypatch.setattr(cli, "ROOT", tmp_path)
     assert model_line(capsys, tmp_path, []) == (["claude-opus-5-5", "(replay)"], "replay")
     assert model_line(capsys, tmp_path, ["--model", "none"]) == (["none", "(none):"], "none")
     (tmp_path / "config.toml").write_text(config.replace('provider = "replay"', 'provider = "none"'))

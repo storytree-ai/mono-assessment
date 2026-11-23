@@ -1,0 +1,48 @@
+{
+  "_generated": "GENERATED: recorded model response (claude-code)",
+  "model": "claude-opus-5-5",
+  "response": {
+    "annotations": [
+      {
+        "criterion": "crm_record@1",
+        "finding": "",
+        "recommended_action": "",
+        "chase_by": "",
+        "concern": "",
+        "concern_sources": []
+      },
+      {
+        "criterion": "credit_report@1",
+        "finding": "",
+        "recommended_action": "",
+        "chase_by": "",
+        "concern": "",
+        "concern_sources": []
+      },
+      {
+        "criterion": "drivers_licence@1",
+        "finding": "",
+        "recommended_action": "",
+        "chase_by": "",
+        "concern": "",
+        "concern_sources": []
+      },
+      {
+        "criterion": "dealer_invoice@1",
+        "finding": "",
+        "recommended_action": "",
+        "chase_by": "",
+        "concern": "",
+        "concern_sources": []
+      },
+      {
+        "criterion": "bank_statements@1",
+        "finding": "bank-statement.pdf could not be opened as a PDF, so the statement period and account details can't be checked, and no other document mentions the statements.",
+        "recommended_action": "Ask the broker to send a readable copy of three months of Riverbend Haulage's business bank statements.",
+        "chase_by": "",
+        "concern": "",
+        "concern_sources": []
+      }
+    ]
+  }
+}

@@ -51,7 +51,7 @@ def notices(report: dict) -> list[str]:
     said = []
     for source, state in report["sources"].items():
         if state == "unavailable":
-            said.append(f"{source} is unavailable: the items that need it can't progress until it is back.")
+            said.append(f"{source} is unavailable: items with nothing in this run's cache can't progress until it is back.")
     note = report["model"].get("note") or ""
     if note.startswith("unavailable"):
         said.append("The model is unavailable: the document items are left to you, with their documents linked.")
