@@ -1,3 +1,3 @@
 # Brief
 
-Put the Mono assessment PDF here (from Drive > Careers > Mono). The plan's open questions are answered from it.
+The assessment brief as received from monō: Forward Deployed Engineer candidate assessment task, version 1.1.
