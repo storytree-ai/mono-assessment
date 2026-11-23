@@ -1,11 +1,13 @@
 import json
+import re
 import shutil
 from datetime import date
 from pathlib import Path
 
-from checklist.__main__ import find, pending
+import checklist.__main__ as command
+from checklist.__main__ import find, main, pending
 from checklist import documents
-from checklist.criteria import EXCEPTION, SATISFIED, UNABLE
+from checklist.criteria import CRITERIA, EXCEPTION, EXTRACTED_INPUTS, SATISFIED, UNABLE
 from checklist.engine import run
 from checklist.model import NoModel, ReplayModel
 from checklist.report import render
@@ -28,6 +30,22 @@ def assert_matches_expected(report, folder):
         refs = [s["ref"] for s in items[key]["sources"]]
         assert all(ref in refs for ref in want.get("sources", [])), key
     assert report["summary"] == expected["summary"]
+
+
+def test_1_2_every_criterion_is_keyed_by_name_and_version_and_names_when_it_applies_and_what_it_reads():
+    keys = [c.key for c in CRITERIA]
+    assert len(keys) == len(set(keys)) and "dealer_invoice@1" in keys
+    record = json.loads((APP_1 / "crm/record.json").read_text())
+    for criterion in CRITERIA:
+        assert re.fullmatch(r"[a-z_]+@[0-9]+", criterion.key), criterion.key
+        assert criterion.applies_when.strip() and isinstance(criterion.applies(record), bool), criterion.key
+        for path, name in criterion.structured.values():
+            assert name in json.loads((APP_1 / path).read_text()), (criterion.key, path, name)
+        assert set(criterion.extracted) <= set(EXTRACTED_INPUTS), criterion.key
+        assert bool(criterion.extracted) == (criterion.document is not None), criterion.key
+    invoice = next(c for c in CRITERIA if c.key == "dealer_invoice@1")
+    assert invoice.structured == {"loan_amount": ("crm/record.json", "loan_amount")}
+    assert (invoice.extracted, invoice.document) == (("invoice_total",), "dealer-invoice")
 
 
 def test_1_3_application_1_matches_its_expected_report():
@@ -179,3 +197,22 @@ def test_every_view_reads_as_rule_state_finding_action_sources_with_technical_de
         detailed = render(report, details=True)
         assert report["run_id"] in detailed and report["model"]["name"] in detailed and "crm_record@1" in detailed
     assert "\033[31m" in render(checklist(APP_1), colour=True) and "\033[" not in render(checklist(APP_1))
+
+
+def model_line(capsys, tmp_path, argv):
+    main(["app-1001", "--details", "--as-of", "2026-11-22", *argv])
+    brief = capsys.readouterr().out
+    assert brief.startswith("APP-1001 · ")
+    logged = json.loads((tmp_path / "audit/audit.jsonl").read_text().splitlines()[-1])
+    return next(line.split()[1:3] for line in brief.splitlines() if line.strip().startswith("Model ")), logged["model"]["provider"]
+
+
+def test_2_7_the_checklist_command_prints_the_report_with_the_configured_model_unless_model_overrides_it(tmp_path, monkeypatch, capsys):
+    config = (command.ROOT / "config.toml").read_text()
+    (tmp_path / "config.toml").write_text(config)
+    monkeypatch.setattr(command, "ROOT", tmp_path)
+    assert model_line(capsys, tmp_path, []) == (["claude-opus-5-5", "(replay)"], "replay")
+    assert model_line(capsys, tmp_path, ["--model", "none"]) == (["none", "(none):"], "none")
+    (tmp_path / "config.toml").write_text(config.replace('provider = "replay"', 'provider = "none"'))
+    assert model_line(capsys, tmp_path, []) == (["none", "(none):"], "none")
+    assert len((tmp_path / "audit/audit.jsonl").read_text().splitlines()) == 3
