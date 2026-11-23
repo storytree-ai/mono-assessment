@@ -1,5 +1,6 @@
 """The one thin wrapper every model call goes through; the provider is a config setting."""
 import json
+import subprocess
 from pathlib import Path
 
 
@@ -44,12 +45,29 @@ class AnthropicModel:
         )
         if response.stop_reason != "end_turn":
             raise ModelUnavailable(f"model stopped with {response.stop_reason}")
-        answer = json.loads(next(block.text for block in response.content if block.type == "text"))
+        return self.record(task, response.model, json.loads(next(b.text for b in response.content if b.type == "text")))
+
+    def record(self, task, model, answer):
         if self.record_to:
             self.record_to.mkdir(exist_ok=True)
-            saved = {"_generated": "GENERATED: recorded model response", "model": response.model, "response": answer}
+            saved = {"_generated": f"GENERATED: recorded model response ({self.provider})", "model": model,
+                     "response": answer}
             (self.record_to / f"{task}.json").write_text(json.dumps(saved, indent=2) + "\n")
         return answer
+
+
+class ClaudeCodeModel(AnthropicModel):
+    """The same prompts through Claude Code (claude -p) on its own login, with no tools: no API key needed."""
+    provider = "claude-code"
+
+    def ask(self, task, system, user, schema):
+        done = subprocess.run(["claude", "-p", "--model", self.name, "--system-prompt", system, "--tools", "",
+                               "--json-schema", json.dumps(schema), "--output-format", "json"],
+                              input=user, capture_output=True, text=True, timeout=900)
+        result = json.loads(done.stdout or "{}")
+        if done.returncode or result.get("is_error") or "structured_output" not in result:
+            raise ModelUnavailable(f"claude -p failed: {result.get('result') or done.stderr.strip()}")
+        return self.record(task, self.name, result["structured_output"])
 
 
 def make_model(provider: str, name: str, application: Path, record: bool = False):
@@ -59,4 +77,6 @@ def make_model(provider: str, name: str, application: Path, record: bool = False
         return ReplayModel(application / "model-responses")
     if provider == "anthropic":
         return AnthropicModel(name, application / "model-responses" if record else None)
+    if provider == "claude-code":
+        return ClaudeCodeModel(name, application / "live-responses" if record else None)
     raise ValueError(f"unknown model provider {provider!r}")

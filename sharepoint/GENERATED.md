@@ -6,5 +6,5 @@ assessment; no real person or business is described.
 
 - `<id>.pdf`: the document, rendered from its extraction record by `scripts/make_documents.py`.
 - `<id>.origin.json`: where it came from (SharePoint (mocked)).
-- `<id>.extraction.json`: the mocked extraction service's output, which the checklist reads. `APP-1002/bank-statement.pdf`
-  is deliberately corrupted, so its record says the extraction failed.
+- `<id>.extraction.json`: the mocked document parser's output, which the checklist reads. `APP-1002/bank-statement.pdf`
+  is deliberately corrupted, so its record says the parser failed.

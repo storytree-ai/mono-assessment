@@ -1,4 +1,4 @@
-"""checklist [application id] [--details] [--model anthropic|replay|none] [--simulate-outage sharepoint] [--as-of YYYY-MM-DD]
+"""checklist [application id] [--details] [--model anthropic|claude-code|replay|none] [--simulate-outage sharepoint] [--as-of YYYY-MM-DD]
 checklist documents <application id>"""
 import argparse
 import json
@@ -99,12 +99,12 @@ def checklist(argv: list[str]):
         "It prepares evidence for the analyst and credit officer; it never approves or declines credit.")
     parser.add_argument("application", nargs="?", help="an application id, for example app-1001")
     parser.add_argument("--details", action="store_true", help="also show the run id, model, criterion versions and documents")
-    parser.add_argument("--model", choices=["anthropic", "replay", "none"], default=config["model"]["provider"],
-                        help="where model calls go: a real call, the saved responses, or no model")
+    parser.add_argument("--model", choices=["anthropic", "claude-code", "replay", "none"], default=config["model"]["provider"],
+                        help="where model calls go: a real call (API key or Claude Code), the saved responses, or no model")
     parser.add_argument("--simulate-outage", action="append", choices=list(SOURCES), default=[],
                         help="treat a source system as unavailable")
     parser.add_argument("--as-of", type=date.fromisoformat, default=date.today(), metavar="YYYY-MM-DD", help="the date the checks run as of")
-    parser.add_argument("--save-responses", action="store_true", help="with --model anthropic, save the responses for replay")
+    parser.add_argument("--save-responses", action="store_true", help="with a real model, save its responses")
     args = parser.parse_args(argv)
     if args.application is None:
         print(list_pending())

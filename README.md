@@ -24,7 +24,7 @@ decision. For HarbourLine, that means a smaller backlog and less rework from mis
 
 ### Scope
 
-In: steps 2 to 5 of the current workflow. The tool reads an application's documents, CRM record and broker emails,
+In: steps 2 to 5 of the current workflow, and a draft of step 6's exception brief. The tool reads an application's documents, CRM record and broker emails,
 checks them against the lending criteria, and lists what is missing, expired or contradictory, each with its source.
 It gives the analyst a short exception brief, keeps a record of every run, takes manual uploads, and still works
 with the model switched off.
@@ -52,8 +52,8 @@ The pilot is working when, for the pilot analyst group:
 - nothing is written to a system of record without approval;
 - every statement in a brief traces to its source, or is marked unable to verify;
 - at least 70% of the pilot analysts use it each week (38% use today's tool);
-- the time saved supports a defensible annual value: at 240 applications a day, each minute saved is 4 analyst hours
-  a day.
+- the time saved supports a defensible annual value: 22 minutes saved on 240 applications a day is 88 analyst hours
+  a day, about 22,000 hours a year (assuming 250 working days, and the time going to the backlog).
 
 ## How it works
 
@@ -69,16 +69,21 @@ comes up into a plain status or a plain system error, never a traceback.
 
 ## What the prototype shows
 
-On the two synthetic applications (19 tests, `pytest`):
+On the two synthetic applications (20 tests, `pytest`):
 
 - APP-1001: the expired driver's licence, the dealer invoice that is $15,000 below the CRM loan amount, and the missing
   second year of financials are each an exception, each with a quote from and a link to its source.
 - APP-1002: the corrupted bank statement reads unable to verify, for the analyst to check by hand, not missing.
 - Each application's checklist matches its saved expected report; with the model's responses replayed, every run
   gives the same checklist.
-- A model concern raises a satisfied item to an exception and never clears one.
+- A model concern raises a satisfied item to an exception and never clears one, and a model quote not found in its
+  source document makes the item unable to verify ("please check").
+- One live run (2026-11-23): Claude Opus 5.5 through Claude Code's own login (`--model claude-code`, which calls
+  `claude -p`; no API key) gave both applications exactly their expected checklists, every quote found in its source.
+  Its responses are in `applications/*/live-responses/`; the replayed `model-responses/` are hand-written.
 - With the model off, the CRM checks are still decided and the document items are listed with links; with SharePoint
-  down, its items read unable to verify, never missing, and a document uploaded in the run is still read.
+  down, its items read unable to verify, never missing, and a document uploaded in the run is still read: the same
+  path covers a source whose access is delayed by up to a week.
 
 ## What was prioritised, what remains, what next
 
@@ -112,6 +117,7 @@ checklist app-1002 --as-of 2026-11-22
 checklist app-1001 --as-of 2026-11-22 --model none            # the no-model mode
 checklist app-1001 --as-of 2026-11-22 --simulate-outage sharepoint   # a source down: upload a document at the prompt
 checklist app-1001 --as-of 2026-11-22 --model anthropic       # a real call (ANTHROPIC_API_KEY)
+checklist app-1001 --as-of 2026-11-22 --model claude-code     # a real call through Claude Code's login (claude -p)
 
 checklist documents app-1001                                  # what the cache holds for an application, by run
 ```
@@ -135,7 +141,8 @@ from the extraction records, with no extra library. On a terminal, each source i
 
 Each item reads as its rule, its state, the finding, the recommended action and the sources. The checklist prepares
 evidence for the analyst and credit officer; it never approves or declines credit (`checklist --help` says so too).
-`--save-responses` with `--model anthropic` saves the real responses over the hand-written ones. Every run appends a line to
+`--save-responses` saves a real model's responses: `--model anthropic` over the hand-written ones, `--model claude-code`
+into `live-responses/`. Every run appends a line to
 `audit/audit.jsonl`. The provider and model are set in `config.toml`. Next steps are in
 [`docs/production-note.md`](docs/production-note.md); the COO update and harvest bullets are in
 [`docs/client-update.md`](docs/client-update.md).
